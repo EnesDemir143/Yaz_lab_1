@@ -5,23 +5,24 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      - mongo
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - MONGO_URI=${MONGO_URI}
     volumes:
       - .:/app
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 
-  db:
-    image: mysql:8.0
+  mongo:
+    image: mongo:6
+    container_name: my-mongo
+    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
     ports:
-      - "3306:3306"
+      - "27017:27017"
     volumes:
-    - mysql_data:/var/lib/mysql
+      - mongo_data:/data/db
 
 volumes:
-  mysql_data:
+  mongo_data:

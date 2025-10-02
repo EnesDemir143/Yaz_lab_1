@@ -2,5 +2,5 @@ pyqt5
 fastapi
 uvicorn
 sqlalchemy
-pymysql
+pymongo
 pydantic
