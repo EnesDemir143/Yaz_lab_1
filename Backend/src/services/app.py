@@ -4,6 +4,5 @@ from Backend.src.services.Routes.admin import router as admin
 
 
 app = FastAPI()
-
 app.include_router(department_coordinator)
 app.include_router(admin)
