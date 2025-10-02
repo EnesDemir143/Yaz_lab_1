@@ -1,7 +1,8 @@
 import re
 import pandas as pd
+from Backend.src.DataBase.src.utils.get_year_from_str import get_year_from_str
 
-def oku_ders_listesi(path: str, sheet_name: str = "Ders Listesi") -> pd.DataFrame:
+def process_class_list(path: str, save_path:str, sheet_name: str = "Ders Listesi") -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name=sheet_name, header=None)
 
     sinif_rows = df[df[0].astype(str).str.contains("Sınıf", case=False, na=False)].reset_index()
@@ -12,8 +13,7 @@ def oku_ders_listesi(path: str, sheet_name: str = "Ders Listesi") -> pd.DataFram
         end = sinif_rows.loc[i+1, "index"] if i+1 < len(sinif_rows) else len(df)
         sinif_text = str(df.loc[sinif_rows.loc[i, "index"], 0])
 
-        sinif_match = re.search(r'(\d+)', sinif_text)
-        sinif = int(sinif_match.group(1)) if sinif_match else 0
+        sinif = get_year_from_str(sinif_text)
 
         block = df.iloc[start:end, :3].copy()
         block.columns = ["DERS KODU", "DERSİN ADI", "DERSİ VEREN ÖĞR. ELEMANI"]
@@ -35,6 +35,6 @@ def oku_ders_listesi(path: str, sheet_name: str = "Ders Listesi") -> pd.DataFram
     
     final_df = final_df[~final_df["DERS KODU"].isin(['DERS KODU', 'DERSİN ADI', 'DERSİ VEREN ÖĞR. ELEMANI'])]
     
-    final_df.to_excel("processed_ders_listesi.xlsx", index=False)
+    final_df.to_excel(save_path, index=False)
     
     return final_df

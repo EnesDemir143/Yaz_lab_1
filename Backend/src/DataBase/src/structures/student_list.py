@@ -8,3 +8,6 @@ class Student(BaseModel):
     year : int = Field(alias='SINIF')
     classes : List[Class] = Field(alias='DERS')
     
+    class Config:
+        populate_by_name = True
+        extra = "ignore"
