@@ -13,4 +13,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python", ""] # Buraya kendi fastapi girişiş dosyasini koycam.
+CMD ["python"] 
+# Buraya kendi fastapi girişiş dosyasini koycam.
