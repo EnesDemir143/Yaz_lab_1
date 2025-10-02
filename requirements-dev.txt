@@ -1,1 +1,6 @@
 pyqt5
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+pydantic
