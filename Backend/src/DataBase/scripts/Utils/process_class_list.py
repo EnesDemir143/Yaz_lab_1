@@ -1,3 +1,4 @@
+import os
 import re
 import pandas as pd
 from Backend.src.DataBase.src.utils.get_year_from_str import get_year_from_str
@@ -35,6 +36,7 @@ def process_class_list(path: str, save_path:str, sheet_name: str = "Ders Listesi
     
     final_df = final_df[~final_df["DERS KODU"].isin(['DERS KODU', 'DERSİN ADI', 'DERSİ VEREN ÖĞR. ELEMANI'])]
     
-    final_df.to_excel(save_path, index=False)
+    if not os.path.exists(save_path):
+        final_df.to_excel(save_path, index=False)
     
     return final_df
