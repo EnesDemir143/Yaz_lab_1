@@ -17,7 +17,7 @@ def student_list_save_from_excel(path: str, save_path: str) -> None:
                 "ÖĞRENCİ NO": student_num,
                 "Ad Soyad": row["Ad Soyad"],
                 "SINIF": row["Sınıf"],
-                "DERSLER": []
+                "DERSLER": [],
             }
 
         students_dict[student_num]["DERSLER"].append(row["DERS KODU"])
