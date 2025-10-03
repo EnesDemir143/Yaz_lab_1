@@ -6,3 +6,5 @@ pydantic
 dotenv
 pandas
 openpyxl
+requests
+argon2-cffi

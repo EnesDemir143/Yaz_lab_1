@@ -5,6 +5,6 @@ from Backend.src.services.Utils.check_if_admin import require_admin
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
-@router.get("/")
+@router.get("/admin_dashboard")
 def admin_dashboard(user: User = Depends(require_admin)):
     return {"message": f"Welcome, {user.name} (Admin)"}

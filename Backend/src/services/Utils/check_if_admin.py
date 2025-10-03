@@ -1,8 +1,8 @@
 from Backend.src.DataBase.src.structures.user import User
-from fastapi import Depends, HTTPException
-from Backend.src.services.Utils.check_if_admin import check_if_admin
+from fastapi import HTTPException
+from Backend.src.services.Utils.get_current_role import get_current_role
 
 def require_admin(user: User):
-    if not check_if_admin(user):
-        raise HTTPException(status_code=403, detail="Not authorized")
+    if get_current_role(user) != 'admin':
+        raise HTTPException(status_code=403, detail="Not authorized for admin")
     return user
