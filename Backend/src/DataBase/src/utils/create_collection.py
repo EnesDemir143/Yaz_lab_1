@@ -1,4 +1,4 @@
-from Backend.src.DataBase.src.utils.create_collection import get_database
+from Backend.src.DataBase.src.database_connection import get_database
 
 
 def create_collection(collection_name: str):

@@ -1,4 +1,4 @@
-from Backend.src.DataBase.src.utils.get_database import get_database
+from Backend.src.DataBase.src.database_connection import get_database
 from typing import Union, List
 
 def delete_classroom(classroom_id: Union[List[str], str]) -> bool:
