@@ -6,4 +6,4 @@ router = APIRouter(prefix="/department_coordinator", tags=["department_coordinat
 
 @router.get("/coordinator_dashboard")
 def coordinator_dashboard(user: User = Depends(require_coordinator)):
-    return {"message": f"Welcome, {user.name} (Coordinator)"}
+    pass

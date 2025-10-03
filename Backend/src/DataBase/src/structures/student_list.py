@@ -6,6 +6,7 @@ class Student(BaseModel):
     name_surname : str = Field(alias='Ad Soyad')
     year : int = Field(alias='SINIF')
     classes: List[int] = Field(default_factory=list, alias='DERSLER')
+    department : str = Field(alias='BÖLÜM')
     
     class Config:
         populate_by_name = True

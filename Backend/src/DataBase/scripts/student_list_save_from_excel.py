@@ -2,7 +2,7 @@ from Backend.src.DataBase.src.utils.insert_document import insert_document
 from Backend.src.DataBase.src.utils.get_year_from_str import get_year_from_str
 import pandas as pd
 
-def student_list_save_from_excel(path: str, save_path: str) -> None:
+def student_list_save_from_excel(path: str, department: str) -> None:
     student_list_df = pd.read_excel(path)
     
     student_list_df['Sınıf'] = student_list_df['Sınıf'].apply(get_year_from_str)
@@ -18,6 +18,7 @@ def student_list_save_from_excel(path: str, save_path: str) -> None:
                 "Ad Soyad": row["Ad Soyad"],
                 "SINIF": row["Sınıf"],
                 "DERSLER": [],
+                "BÖLÜM": department
             }
 
         students_dict[student_num]["DERSLER"].append(row["DERS KODU"])

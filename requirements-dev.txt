@@ -2,7 +2,8 @@ pyqt5
 fastapi
 uvicorn
 sqlalchemy
-pymongo
+sqlalchemy
+pymysql
 pydantic
 dotenv
 pandas

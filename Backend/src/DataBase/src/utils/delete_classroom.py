@@ -7,11 +7,20 @@ def delete_classroom(classroom_id: Union[List[str], str]) -> bool:
     except Exception as e:
         raise ValueError(f"Error connecting to database: {e}")
     
-    classrooms_collection = db["classrooms"]
+    if isinstance(classroom_id, List):
+        format_strings = ','.join(['%s'] * len(classroom_id))
+        query = f"DELETE FROM classrooms WHERE id IN ({format_strings})"
+        params = tuple(classroom_id)
+    else:
+        query = "DELETE FROM classrooms WHERE id = %s"
+        params = (classroom_id,)
+        
     try:
-        if isinstance(classroom_id, list):
-            result = classrooms_collection.delete_many({"classroom_id": {"$in": classroom_id}})
-        else:
-            result = classrooms_collection.delete_one({"classroom_id": classroom_id})
+        cursor = db.cursor()
+        cursor.execute(query, params)
+        db.commit()
+        cursor.close()
+        db.close()
+        return True
     except Exception as e:
-        raise ValueError(f"Error deleting classroom(s): {e}")
+        raise ValueError(f"Error executing delete operation: {e}")

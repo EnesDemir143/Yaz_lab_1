@@ -7,10 +7,14 @@ def get_current_role(user: User, hasher=HashPassword()) -> str:
         return 'admin'
     else:
         db = get_database()
-        users_collection = db['users']
+        cursor = db.cursor()
+        query = "SELECT password FROM users WHERE email = %s"
+        cursor.execute(query, (user.email,))
+        password = cursor.fetchone()
+        cursor.close()
+        db.close() 
         
-        user_data = users_collection.find_one({'email': user.email})
-        if not user_data:
+        if not password:
             return 'unknown'
-        password_is_true = hasher.verify_password(user.password, user_data['password'])
+        password_is_true = hasher.verify_password(user.password, password)
         return 'coordinator' if password_is_true else 'unknown'
