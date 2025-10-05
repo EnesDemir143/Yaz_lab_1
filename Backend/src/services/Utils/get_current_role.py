@@ -3,7 +3,7 @@ from Backend.src.DataBase.src.Database_connection import get_database
 from Backend.src.DataBase.src.utils.hash_password import HashPassword
 
 def get_current_role(user: User, hasher=HashPassword()) -> str:
-    if user.email == 'admin' and user.password == 'admin':
+    if user.email == 'admin' and user.password == 'admin' and user.department == 'admin':
         return 'admin'
     else:
         with get_database() as db:

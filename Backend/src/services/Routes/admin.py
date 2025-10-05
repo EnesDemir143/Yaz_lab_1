@@ -8,6 +8,7 @@ from Backend.src.DataBase.src.utils.student_list_menu import student_list_menu
 from Backend.src.services.Utils.check_if_admin import require_admin
 from Backend.src.DataBase.scripts.class_list_save_from_excel import class_list_save_from_excel
 from Backend.src.DataBase.scripts.student_list_save_from_excel import student_list_save_from_excel
+from Backend.src.DataBase.src.utils.insert_coordinator import insert_department_coordinator
 import io
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -19,6 +20,13 @@ def admin_dashboard(user: User = Depends(require_admin)):
 
 @router.get("/insert_coordinator")
 def insert_coordinator(user: User = Depends(require_admin)):
+    status, msg = insert_department_coordinator(user)
+    
+    if status == 'error' and status != 'success':
+        return {"message": "Error while inserting coordinator.", 'status': status, 'detail': msg}
+    
+    return {"message": "Coordinator inserted successfully", 'status': status, 'detail': msg}
+    
     
 
 @router.post("/upload_classes_list") 

@@ -3,4 +3,4 @@ from pydantic import BaseModel, Field
 class User(BaseModel):
     email: str = Field(...)
     password: str = Field(...)
-    department: str = Field(default='Admin') 
+    department: str = Field(default='admin') 
