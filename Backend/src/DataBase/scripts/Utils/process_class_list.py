@@ -21,43 +21,46 @@ def process_class_list(df: pd.DataFrame, department, strict: bool = True) -> pd.
                        f"Bulunan sütun sayısı: {block.shape[1]} | Aralık: [{start}, {end})")
                 print(msg)
                 if strict:
-                    raise ValueError(msg)
+                    return {
+                        'df': df,
+                        'status': 'error',
+                        'message': msg
+                    }
                 else:
                     continue
 
             block.columns = ["class_id", "class_name", "teacher"]
 
             for ridx, r in block.iterrows():
-                try:
-                    _ = str(r["DERS KODU"])  
-                    _ = str(r["DERSİN ADI"])
-                    _ = str(r["DERSİ VEREN ÖĞR. ELEMANI"])
-                except Exception as e_row:
-                    excel_row_no = int(ridx) + 1
-                    print("\n[HATA] Satır okunurken istisna oluştu:")
-                    print(f"  - Sınıf: {sinif} | Orijinal df index: {ridx} | Excel satır no (tahmini): {excel_row_no}")
-                    print(f"  - Hata Türü: {type(e_row).__name__} | Mesaj: {e_row}")
-                    print("  - Satır içeriği:", dict(r), "\n")
-                    if strict:
-                        raise ValueError(
-                            f"Sınıf {sinif} bloğunda satır işlenemedi. "
-                            f"Orijinal index: {ridx}, Excel satır no (tahmini): {excel_row_no}. "
-                            f"Hata: {e_row}"
-                        )
-                    else:
-                        block = block.drop(index=ridx, errors="ignore")
+                for col in ["class_id", "class_name", "teacher"]:
+                    try:
+                        val = str(r[col])
+                        if val.strip().lower() in ["nan", "none", ""]:
+                            raise ValueError("Boş değer")
+                    except Exception as e_row:
+                        excel_row_no = int(ridx) + 1
+                        print(f"[HATA] Satır {excel_row_no}, sütun '{col}' işlenemedi.")
+                        print(f"  - Sınıf: {sinif}")
+                        print(f"  - Hata Türü: {type(e_row).__name__} | Mesaj: {e_row}")
+                        print(f"  - Orijinal değer: {r.get(col, None)}\n")
+                        block.at[ridx, col] = None  # hücreyi None olarak işaretle
+                        if strict:
+                            return {
+                                'df': df,
+                                'status': 'error',
+                                'message': f"Satır {excel_row_no}, sütun '{col}' işlenemedi: {e_row}"
+                            }
 
             secmeli_mask = block["class_id"].astype(str).str.contains("Seçimlik|Seçmeli", case=False, na=False)
             if secmeli_mask.any():
                 secmeli_index = secmeli_mask.idxmax()
-                block = block.drop(secmeli_index)    
+                block = block.drop(secmeli_index)
                 block["is_optional"] = False
                 block.loc[block.index >= secmeli_index, "is_optional"] = True
             else:
                 block["is_optional"] = False
 
             block["grade"] = sinif
-
             block = block[~block["class_id"].isin(['class_id', 'class_name', 'teacher'])]
 
             rows.append(block)
@@ -68,7 +71,11 @@ def process_class_list(df: pd.DataFrame, department, strict: bool = True) -> pd.
             print(f"  - Aralık: [{start}, {end})")
             print(f"  - Hata Türü: {type(e).__name__} | Mesaj: {e}\n")
             if strict:
-                raise
+                return {
+                    'df': df,
+                    'status': 'error',
+                    'message': f"Sınıf bloğu işlenemedi: '{sinif_text}' | Hata: {e}"
+                }
             else:
                 continue
 
@@ -80,7 +87,10 @@ def process_class_list(df: pd.DataFrame, department, strict: bool = True) -> pd.
         return pd.DataFrame(columns=["DERS KODU", "DERSİN ADI", "DERSİ VEREN ÖĞR. ELEMANI", "Seçmeli mi?", "SINIF"])
 
     final_df = pd.concat(rows, ignore_index=True)
-    
-    final_df = final_df['department'] = department if department is not None else "Unknown"
+    final_df["department"] = department if department is not None else "Unknown"
 
-    return final_df
+    return {
+        'df':final_df,
+        'status':'success',
+        'message':'Class list processed successfully.'
+    }

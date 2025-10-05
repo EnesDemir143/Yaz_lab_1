@@ -2,8 +2,13 @@ from Backend.src.DataBase.scripts.Utils.process_class_list import process_class_
 from Backend.src.DataBase.src.utils.insert_classes import insert_classes
 import pandas as pd
 
-def class_list_save_from_excel(df: pd.DataFrame, department:str) -> None:
-    ders_listesi_df = process_class_list(df, department, sheet_name="Ders Listesi")
+def class_list_save_from_excel(df: pd.DataFrame, department:str):
+    ders_listesi_df, status, msg = process_class_list(df, department, sheet_name="Ders Listesi")
+    
+    if status == 'error' and status != 'success':
+        print("Error while processing class list.", msg)
+        return status, msg
+        
                 
     class_list = ders_listesi_df.to_dict(orient="records")
     

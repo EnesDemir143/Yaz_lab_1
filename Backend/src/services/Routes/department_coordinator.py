@@ -19,7 +19,10 @@ async def upload_classes_list(user: User = Depends(require_coordinator), file: U
     
     df = pd.read_excel(io.BytesIO(contents), sheet_name="Ders Listesi", header=None)
     
-    class_list_save_from_excel(df, department=user.department)
+    status, msg = class_list_save_from_excel(df, department=user.department)
+    
+    if status == 'error' and status != 'success':
+        return {"message": "Error while uploading class list.", 'status': 'error', 'detail': msg}
     
     return {"message": "Class list uploaded successfully", 'status': 'success'}
 
