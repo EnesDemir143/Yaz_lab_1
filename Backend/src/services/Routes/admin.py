@@ -17,6 +17,10 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 def admin_dashboard(user: User = Depends(require_admin)):
     pass
 
+@router.get("/insert_coordinator")
+def insert_coordinator(user: User = Depends(require_admin)):
+    
+
 @router.post("/upload_classes_list") 
 async def upload_classes_list(user: User = Depends(require_admin), file: UploadFile = File(...)):
     contents = await file.file.read().decode("utf-8")
