@@ -14,23 +14,23 @@ def admin_dashboard(user: User = Depends(require_admin)):
     pass
 
 @router.post("/upload_classes_list") 
-async def upload_classes_list(department: str, user: User = Depends(require_admin), file: UploadFile = File(...)):
+async def upload_classes_list(user: User = Depends(require_admin), file: UploadFile = File(...)):
     
     contents = await file.file.read().decode("utf-8")
     
     df = pd.read_excel(io.BytesIO(contents), sheet_name="Ders Listesi", header=None)
     
-    class_list_save_from_excel(df, department=department)
+    class_list_save_from_excel(df, department=user.department)
     
     return {"message": "Class list uploaded successfully", 'status': 'success'}
 
 
 @router.post("/upload_students_list")
-async def upload_students_list(department: str, user: User = Depends(require_admin), file: UploadFile = File(...)):
+async def upload_students_list(user: User = Depends(require_admin), file: UploadFile = File(...)):
     contents = await file.file.read().decode("utf-8")
     
     df = pd.read_excel(io.BytesIO(contents))
     
-    student_list_save_from_excel(df, department=department)
+    student_list_save_from_excel(df, department=user.department)
     
     return {"message": "Student list uploaded successfully", 'status': 'success'}
