@@ -3,7 +3,6 @@ from Backend.src.DataBase.src.structures.user import User
 from Backend.src.services.Routes.department_coordinator import router as department_coordinator
 from Backend.src.services.Routes.admin import router as admin
 from Backend.src.services.Utils.get_current_role import get_current_role
-from Backend.src.DataBase.src.utils.hash_password import HashPassword
 
 app = FastAPI()
 
