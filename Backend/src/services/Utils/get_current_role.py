@@ -1,5 +1,5 @@
 from Backend.src.DataBase.src.structures.user import User
-from Backend.src.DataBase.src.database_connection import get_database
+from Backend.src.DataBase.src.Database_connection import get_database
 from Backend.src.DataBase.src.utils.hash_password import HashPassword
 
 def get_current_role(user: User, hasher=HashPassword()) -> str:

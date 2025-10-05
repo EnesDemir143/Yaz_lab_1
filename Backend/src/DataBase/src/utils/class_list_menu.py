@@ -1,4 +1,4 @@
-from Backend.src.DataBase.src.database_connection import get_database
+from Backend.src.DataBase.src.Database_connection import get_database
 import pymysql
 
 def class_list_menu(department: str) -> list[dict]:

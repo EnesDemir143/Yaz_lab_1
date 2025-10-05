@@ -3,9 +3,7 @@ import pandas as pd
 from typing import List
 from Backend.src.DataBase.src.utils.get_year_from_str import get_year_from_str
 
-def process_class_list(path: str, save_path: str, department, sheet_name: str = "Ders Listesi",
-                       strict: bool = True) -> pd.DataFrame:
-    df = pd.read_excel(path, sheet_name=sheet_name, header=None)
+def process_class_list(df: pd.DataFrame, department, strict: bool = True) -> pd.DataFrame:
 
     sinif_rows = df[df[0].astype(str).str.contains("Sınıf", case=False, na=False)].reset_index()
 

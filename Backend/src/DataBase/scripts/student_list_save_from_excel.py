@@ -2,8 +2,7 @@ from Backend.src.DataBase.src.utils.get_year_from_str import get_year_from_str
 from Backend.src.DataBase.src.utils.insert_students import insert_students
 import pandas as pd
 
-def student_list_save_from_excel(path: str, department: str) -> None:
-    student_list_df = pd.read_excel(path)
+def student_list_save_from_excel(student_list_df: pd.DataFrame, department: str) -> None:
     
     student_list_df['Sınıf'] = student_list_df['Sınıf'].apply(get_year_from_str)
     
