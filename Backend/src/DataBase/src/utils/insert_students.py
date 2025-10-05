@@ -28,6 +28,6 @@ def insert_students(students: pd.DataFrame) -> None:
                 ON DUPLICATE KEY UPDATE
                     class_id = VALUES(class_id)
                 """
-                class_codes = student_info['classes'].split(',') if pd.notna(student_info['class_codes']) else []
+                class_codes = student_info['classes'].split(',') if pd.notna(student_info['classes']) else []
                 for class_code in class_codes:
                     cursor.execute(sql_2, (student_info['student_num'], class_code.strip()))

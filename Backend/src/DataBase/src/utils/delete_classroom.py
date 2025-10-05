@@ -7,8 +7,8 @@ def delete_classroom(classroom_id: Union[List[str], str]) -> None:
         with db.cursor(pymysql.cursors.DictCursor) as cursor:
             if isinstance(classroom_id, List):
                 format_strings = ','.join(['%s'] * len(classroom_id))
-                sql = f"DELETE FROM classes WHERE `class_id` IN ({format_strings})"
+                sql = f"DELETE FROM classrooms WHERE `class_id` IN ({format_strings})"
                 cursor.execute(sql, classroom_id)
             else:
-                sql = "DELETE FROM classes WHERE `class_id` = %s"
+                sql = "DELETE FROM classrooms WHERE `class_id` = %s"
                 cursor.execute(sql, (classroom_id,))
