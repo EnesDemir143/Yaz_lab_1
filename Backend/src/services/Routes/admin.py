@@ -1,6 +1,7 @@
 import pandas as pd
 from fastapi import APIRouter, Depends, UploadFile, File
 from Backend.src.DataBase.src.structures.user import User
+from Backend.src.DataBase.src.utils.class_list_menu import class_list_menu
 from Backend.src.DataBase.src.utils.student_list_menu import student_list_menu
 from Backend.src.services.Utils.check_if_admin import require_admin
 from Backend.src.DataBase.scripts.class_list_save_from_excel import class_list_save_from_excel
@@ -66,3 +67,29 @@ def student_list_filter(student_num: str, user: User = Depends(require_admin)):
         classes.append((record.get('class_name'), record.get('class_code')))
         
     return {'name': name, 'surname': surname, 'classes': classes, "message": "Records fetched successfully.", 'status': 'success'}
+
+@router.post("/all_classes")
+def all_classes(department: str, user: User = Depends(require_admin)):
+    class_dict = {}
+    
+    try:
+        classes = class_list_menu(department)
+        
+        for cls in classes:
+            if cls['class_id'] not in classes:
+                classes[cls['class_id']] = {
+                    'class_id': cls['class_id'],
+                    'class_name': cls['class_name'],
+                    'students': []
+                }
+            if cls['student_num']:
+                classes[cls['class_id']]['students'].append({
+                    'student_num': cls['student_num'],
+                    'name': cls['name'],
+                    'surname': cls['surname']
+                })
+        
+    except Exception as e:
+        return {'classes': class_dict, "message": "Error while fetching classes.", 'status': 'error', 'detail': str(e)}
+    
+    return {'classes': class_dict, "message": "Classes fetched successfully.", 'status': 'success'}
