@@ -1,5 +1,3 @@
-# algoritmalar.py
-
 class DersSecimi:
     def __init__(self, dersler):
         self.dersler = dersler

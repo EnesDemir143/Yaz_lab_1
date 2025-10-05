@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QDateEdit, QComboBox, QSpinBox, QLineEdit
 )
 from PyQt5.QtCore import QDate, Qt
-from algoritmalar import DersSecimi, SinavTarihleri, SinavTuru, SinavSuresi, BeklemeSuresi
+from Backend.src.utils.exams.algoritmalar import DersSecimi, SinavTarihleri, SinavTuru, SinavSuresi, BeklemeSuresi
 
 
 # ---------- 1. DERS SEÇİMİ SAYFASI ----------
