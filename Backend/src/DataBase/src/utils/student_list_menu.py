@@ -4,7 +4,11 @@ import pymysql
 def student_list_menu(student_num: int) -> list[dict]:
     with get_database() as db:
         with db.cursor(pymysql.cursors.DictCursor) as cursor:
-            query = 'SELECT * FROM students JOIN classes ON students.department = classes.department WHERE students.student_num = %s'
+            query = 'SELECT s.name, s.surname, c.class_name, c.class_code ' \
+                    'FROM students s ' \
+                    'LEFT JOIN student_classes sc ON s.student_num = sc.student_num ' \
+                    'LEFT JOIN classes c ON sc.class_id = c.id ' \
+                    'WHERE s.student_num = %s'
             cursor.execute(query, (student_num,))
             students_and_classes = cursor.fetchall()
             return students_and_classes

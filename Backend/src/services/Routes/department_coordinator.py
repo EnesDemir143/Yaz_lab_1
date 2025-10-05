@@ -46,15 +46,18 @@ async def upload_students_list(user: User = Depends(require_coordinator), file: 
 
 @router.post("/student_list_filter")
 def student_list_filter(student_num: str, user: User = Depends(require_coordinator)):
+    name, surname, classes = None, None, []
     
     try:
         student_num_int = int(student_num)
     except ValueError:
-        return {"message": "Invalid student number format.", 'status': 'error', 'data': None}
+        return {'name': name, 'surname': surname, 'classes': classes, "message": "Invalid student number format.", 'status': 'error'}
     
     students_and_classes = student_list_menu(student_num_int)
+
+    if not students_and_classes:
+        return {'name': name, 'surname': surname, 'classes': classes, "message": "No records found for the given student number.", 'status': 'error'}
     
-    name, surname, classes = None, None, []
     for record in students_and_classes:
         if name is None:
             name = record.get('name')
@@ -62,8 +65,4 @@ def student_list_filter(student_num: str, user: User = Depends(require_coordinat
             surname = record.get('surname')
         classes.append((record.get('class_name'), record.get('class_code')))
         
-    
-    if not students_and_classes:
-        return {"message": "No records found for the given student number.", 'status': 'error', 'data': None}
-    
-    return {"message": "Records retrieved successfully.", 'status': 'success', 'data': students_and_classes}
+    return {'name': name, 'surname': surname, 'classes': classes, "message": "Records fetched successfully.", 'status': 'success'}
