@@ -6,13 +6,12 @@ def insert_students(students: pd.DataFrame) -> None:
         with connection.cursor() as cursor:
             for _, student_info in students.iterrows():
                 sql = """
-                INSERT INTO students (student_id, name, surname, class, courses, department)
+                INSERT INTO students (student_id, name, surname, grade, department)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
                     name = VALUES(name),
                     surname = VALUES(surname),
-                    class = VALUES(class),
-                    courses = VALUES(courses),
+                    grade = VALUES(grade),
                     department = VALUES(department)
                 """
                 cursor.execute(sql, (
@@ -20,6 +19,15 @@ def insert_students(students: pd.DataFrame) -> None:
                     student_info['name'],
                     student_info['surname'],
                     student_info['grade'],
-                    ','.join(student_info['classes']),
                     student_info.get('department', None)
                 ))
+                
+                sql_2 = """
+                INSERT INTO student_classes (student_id, class_code) 
+                VALUES (%s, %s)
+                ON DUPLICATE KEY UPDATE
+                    class_code = VALUES(class_code)
+                """
+                class_codes = student_info['class_codes'].split(',') if pd.notna(student_info['class_codes']) else []
+                for class_code in class_codes:
+                    cursor.execute(sql_2, (student_info['student_num'], class_code.strip()))
