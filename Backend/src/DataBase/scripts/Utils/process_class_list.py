@@ -3,6 +3,7 @@ import pandas as pd
 from typing import List
 from Backend.src.DataBase.src.utils.get_year_from_str import get_year_from_str
 
+# Burda department eklenmesi gerekli onu alıcaz api ile. O kısımda olcak yani !!
 def process_class_list(path: str, save_path: str, sheet_name: str = "Ders Listesi",
                        strict: bool = True) -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name=sheet_name, header=None)
@@ -27,7 +28,7 @@ def process_class_list(path: str, save_path: str, sheet_name: str = "Ders Listes
                 else:
                     continue
 
-            block.columns = ["DERS KODU", "DERSİN ADI", "DERSİ VEREN ÖĞR. ELEMANI"]
+            block.columns = ["class_id", "class_name", "teacher"]
 
             for ridx, r in block.iterrows():
                 try:
@@ -49,18 +50,18 @@ def process_class_list(path: str, save_path: str, sheet_name: str = "Ders Listes
                     else:
                         block = block.drop(index=ridx, errors="ignore")
 
-            secmeli_mask = block["DERS KODU"].astype(str).str.contains("Seçimlik|Seçmeli", case=False, na=False)
+            secmeli_mask = block["class_id"].astype(str).str.contains("Seçimlik|Seçmeli", case=False, na=False)
             if secmeli_mask.any():
                 secmeli_index = secmeli_mask.idxmax()
                 block = block.drop(secmeli_index)    
-                block["Seçmeli mi?"] = False
-                block.loc[block.index >= secmeli_index, "Seçmeli mi?"] = True
+                block["is_optional"] = False
+                block.loc[block.index >= secmeli_index, "is_optional"] = True
             else:
-                block["Seçmeli mi?"] = False
+                block["is_optional"] = False
 
-            block["SINIF"] = sinif
+            block["grade"] = sinif
 
-            block = block[~block["DERS KODU"].isin(['DERS KODU', 'DERSİN ADI', 'DERSİ VEREN ÖĞR. ELEMANI'])]
+            block = block[~block["class_id"].isin(['class_id', 'class_name', 'teacher'])]
 
             rows.append(block)
 
@@ -82,8 +83,5 @@ def process_class_list(path: str, save_path: str, sheet_name: str = "Ders Listes
         return pd.DataFrame(columns=["DERS KODU", "DERSİN ADI", "DERSİ VEREN ÖĞR. ELEMANI", "Seçmeli mi?", "SINIF"])
 
     final_df = pd.concat(rows, ignore_index=True)
-
-    if not os.path.exists(save_path):
-        final_df.to_excel(save_path, index=False)
 
     return final_df
