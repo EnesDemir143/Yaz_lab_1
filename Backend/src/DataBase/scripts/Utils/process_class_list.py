@@ -3,8 +3,7 @@ import pandas as pd
 from typing import List
 from Backend.src.DataBase.src.utils.get_year_from_str import get_year_from_str
 
-# Burda department eklenmesi gerekli onu alıcaz api ile. O kısımda olcak yani !!
-def process_class_list(path: str, save_path: str, sheet_name: str = "Ders Listesi",
+def process_class_list(path: str, save_path: str, department, sheet_name: str = "Ders Listesi",
                        strict: bool = True) -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name=sheet_name, header=None)
 
@@ -83,5 +82,7 @@ def process_class_list(path: str, save_path: str, sheet_name: str = "Ders Listes
         return pd.DataFrame(columns=["DERS KODU", "DERSİN ADI", "DERSİ VEREN ÖĞR. ELEMANI", "Seçmeli mi?", "SINIF"])
 
     final_df = pd.concat(rows, ignore_index=True)
+    
+    final_df = final_df['department'] = department if department is not None else "Unknown"
 
     return final_df
