@@ -1,7 +1,7 @@
 from Backend.src.DataBase.src.Database_connection import get_database
 from Backend.src.DataBase.src.structures.classrooms import Classroom
 
-def insert_classroom(classroom: Classroom):
+def insert_classroom_to_db(classroom: Classroom):
     try:
         with get_database() as db:
             with db.cursor() as cursor:
@@ -26,5 +26,5 @@ def insert_classroom(classroom: Classroom):
                     classroom.desk_structure
                 ))
     except Exception as e:
-        print(f"Error inserting classroom: {e}")
-        raise
+        return 'error', str(e)
+    return 'success', 'Classroom inserted/updated successfully.'

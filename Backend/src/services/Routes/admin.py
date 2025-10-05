@@ -1,7 +1,9 @@
 import pandas as pd
 from fastapi import APIRouter, Depends, UploadFile, File
+from Backend.src.DataBase.src.structures.classrooms import Classroom
 from Backend.src.DataBase.src.structures.user import User
 from Backend.src.DataBase.src.utils.class_list_menu import class_list_menu
+from Backend.src.DataBase.src.utils.insert_classroom import insert_classroom_to_db
 from Backend.src.DataBase.src.utils.student_list_menu import student_list_menu
 from Backend.src.services.Utils.check_if_admin import require_admin
 from Backend.src.DataBase.scripts.class_list_save_from_excel import class_list_save_from_excel
@@ -93,3 +95,12 @@ def all_classes(department: str, user: User = Depends(require_admin)):
         return {'classes': class_dict, "message": "Error while fetching classes.", 'status': 'error', 'detail': str(e)}
     
     return {'classes': class_dict, "message": "Classes fetched successfully.", 'status': 'success'}
+
+@router.post("/insert_classroom")
+def insert_classroom(classroom: Classroom, user: User = Depends(require_admin)):
+        status, msg = insert_classroom_to_db(classroom)
+        
+        if status == 'error' and status != 'success':
+            return {"message": "Error while inserting/updating classroom.", 'status': status, 'detail': msg}
+        
+        return {"message": "Classroom inserted/updated successfully.", 'status': status, 'detail': msg}
