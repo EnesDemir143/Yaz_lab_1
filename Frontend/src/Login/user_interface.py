@@ -6,7 +6,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont, QColor, QIcon
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from Frontend.src.Admin.admin_dashboard import AdminDashboard
 
+LOGIN_API_URL = "http://127.0.0.1:8000/login"
 
 # ---- Worker Thread ----
 class LoginWorker(QThread):
@@ -19,7 +21,7 @@ class LoginWorker(QThread):
 
     def run(self):
         try:
-            resp = requests.post("http://127.0.0.1:8000/login", json={
+            resp = requests.post(LOGIN_API_URL, json={
                 "email": self.email,
                 "password": self.password
             })
@@ -29,7 +31,7 @@ class LoginWorker(QThread):
                 self.finished.emit({"error": resp.text})
         except Exception as e:
             self.finished.emit({"error": str(e)})
-
+            
 
 # ---- Login Window ----
 class LoginWindow(QWidget):
@@ -162,6 +164,12 @@ class LoginWindow(QWidget):
             self.status_label.setStyleSheet("color: #4CAF50;")
             if role == "admin":
                 self.status_label.setText("✅ Admin girişi başarılı!")
+                self.dashboard = AdminDashboard({
+                    "name": result.get("email"),
+                    "department": result.get("department")
+                })
+                self.dashboard.show()
+                self.close()
             elif role == "coordinator":
                 self.status_label.setText("✅ Koordinatör girişi başarılı!")
             else:

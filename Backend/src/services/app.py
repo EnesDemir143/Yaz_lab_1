@@ -15,9 +15,9 @@ def login(user: User):
 
     if role == "admin":
         print("Admin logged in")
-        return {"role": "admin"}
+        return {"role": "admin", "email": user.email, "department": user.department}
     elif role == "coordinator":
         print("Coordinator logged in")
-        return {"role": "coordinator"}
+        return {"role": "coordinator", "email": user.email, "department": user.department}
     else:
         raise HTTPException(status_code=401, detail="Invalid role")

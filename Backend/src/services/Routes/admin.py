@@ -11,12 +11,9 @@ from Backend.src.DataBase.scripts.student_list_save_from_excel import student_li
 from Backend.src.DataBase.src.utils.insert_coordinator import insert_department_coordinator
 import io
 
+
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-
-@router.get("/admin_dashboard")
-def admin_dashboard(user: User = Depends(require_admin)):
-    pass
 
 @router.get("/insert_coordinator")
 def insert_coordinator(user: User = Depends(require_admin)):
