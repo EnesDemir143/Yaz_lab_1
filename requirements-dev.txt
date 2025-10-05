@@ -2,5 +2,11 @@ pyqt5
 fastapi
 uvicorn
 sqlalchemy
-pymongo
+sqlalchemy
+pymysql
 pydantic
+dotenv
+pandas
+openpyxl
+requests
+argon2-cffi

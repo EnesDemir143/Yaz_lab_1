@@ -1,28 +1,26 @@
 services:
   app:
     build: .
-    container_name: my-python-app
+    container_name: fastapi_app
     ports:
       - "8000:8000"
     depends_on:
-      - mongo
-    environment:
-      - MONGO_URI=${MONGO_URI}
+      - db
     volumes:
       - .:/app
     command: uvicorn Backend.src.services.app:app --host 0.0.0.0 --port 8000 --reload
 
-  mongo:
-    image: mongo:6
-    container_name: my-mongo
-    restart: always
+  db:
+    image: mysql:8.0
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "27017:27017"
+      - "3306:3306"
     volumes:
-      - mongo_data:/data/db
+    - mysql_data:/var/lib/mysql
 
 volumes:
-  mongo_data:
+  mysql_data:
