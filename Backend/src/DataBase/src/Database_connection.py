@@ -13,7 +13,8 @@ def get_database() -> pymysql.connections.Connection:
             user=os.getenv("MYSQL_USER"),
             password=os.getenv("MYSQL_PASSWORD"),
             database=os.getenv("MYSQL_DATABASE"),
-            port=3306
+            port=3306,
+            autocommit=True
         )
     except pymysql.MySQLError as e:
         print(f"Error connecting to database: {e}")
