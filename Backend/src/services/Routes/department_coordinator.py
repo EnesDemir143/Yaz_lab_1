@@ -14,7 +14,6 @@ def coordinator_dashboard(user: User = Depends(require_coordinator)):
 
 @router.post("/upload_classes_list") 
 async def upload_classes_list(user: User = Depends(require_coordinator), file: UploadFile = File(...)):
-    
     contents = await file.file.read().decode("utf-8")
     
     df = pd.read_excel(io.BytesIO(contents), sheet_name="Ders Listesi", header=None)
@@ -22,18 +21,23 @@ async def upload_classes_list(user: User = Depends(require_coordinator), file: U
     status, msg = class_list_save_from_excel(df, department=user.department)
     
     if status == 'error' and status != 'success':
-        return {"message": "Error while uploading class list.", 'status': 'error', 'detail': msg}
+        return {"message": "Error while uploading class list.", 'status': status, 'detail': msg}
     
-    return {"message": "Class list uploaded successfully", 'status': 'success'}
+    return {"message": "Class list uploaded successfully", 'status': status, 'detail': msg}
 
 
 @router.post("/upload_students_list")
 async def upload_students_list(user: User = Depends(require_coordinator), file: UploadFile = File(...)):
-    
     contents = await file.file.read().decode("utf-8")
     
     df = pd.read_excel(io.BytesIO(contents))
     
-    student_list_save_from_excel(df, department=user.department)
+    return_dict = student_list_save_from_excel(df, department=user.department)
     
-    return {"message": "Student list uploaded successfully", 'status': 'success'}
+    status = return_dict.get('status', 'error')
+    msg = return_dict.get('msg', '')
+    
+    if status == 'error' and status != 'success':
+        return {"message": "Error while uploading student list.", 'status': status, 'detail': msg}
+    
+    return {"message": "Student list uploaded successfully", 'status': status, 'detail': msg}
