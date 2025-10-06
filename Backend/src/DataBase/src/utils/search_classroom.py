@@ -6,7 +6,7 @@ def search_classroom(classroom_code: str) -> Union[Dict, List[Dict]]:
     with get_database() as db:
         with db.cursor(pymysql.cursors.DictCursor) as cursor:
             sql = "SELECT * FROM classroom WHERE classroom_code = %s"
-            cursor.execute(sql, (classroom_code,))
+            cursor.execute(sql, (classroom_code, ))
             result = cursor.fetchone()
             if not result:
                 return [], 'error', 'Classroom not found.'

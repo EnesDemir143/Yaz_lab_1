@@ -9,6 +9,7 @@ from Backend.src.services.Utils.check_if_admin import require_admin
 from Backend.src.DataBase.scripts.class_list_save_from_excel import class_list_save_from_excel
 from Backend.src.DataBase.scripts.student_list_save_from_excel import student_list_save_from_excel
 from Backend.src.DataBase.src.utils.insert_coordinator import insert_department_coordinator
+from Backend.src.DataBase.src.utils.search_classroom import search_classroom as db_search_classroom
 import io
 
 
@@ -113,3 +114,12 @@ def insert_classroom(classroom: Classroom, user: User = Depends(require_admin)):
             return {"message": "Error while inserting/updating classroom.", 'status': status, 'detail': msg}
         
         return {"message": "Classroom inserted/updated successfully.", 'status': status, 'detail': msg}
+    
+@router.post("/search_classroom")
+def search_classroom(classroom_code: str, user: User = Depends(require_admin)):
+    result, status, msg = db_search_classroom(classroom_code)
+    
+    if status == 'error' and status != 'success':
+        return {"message": "Error while searching for classroom.", 'status': status, 'detail': msg}
+    
+    return {"classroom": result, "message": "Classroom found successfully.", 'status': status, 'detail': msg}
