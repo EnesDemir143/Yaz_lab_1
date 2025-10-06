@@ -1,3 +1,4 @@
+from Backend.src.DataBase.src.utils.update_classroom import update_classroom as db_update_classroom
 import pandas as pd
 from fastapi import APIRouter, Depends, UploadFile, File
 from Backend.src.DataBase.src.structures.classrooms import Classroom
@@ -123,3 +124,12 @@ def search_classroom(classroom_code: str, user: User = Depends(require_admin)):
         return {"message": "Error while searching for classroom.", 'status': status, 'detail': msg}
     
     return {"classroom": result, "message": "Classroom found successfully.", 'status': status, 'detail': msg}
+
+@router.post("/update_classroom")
+def update_classroom(new_classroom_data: Classroom, user: User = Depends(require_admin)):
+    status, msg = db_update_classroom(new_classroom_data)
+    
+    if status == 'error' and status != 'success':
+        return {"message": "Error while updating classroom.", 'status': status, 'detail': msg}
+    
+    return {"message": "Classroom updated successfully.", 'status': status, 'detail': msg}

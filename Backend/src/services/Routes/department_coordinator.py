@@ -1,3 +1,4 @@
+from Backend.src.DataBase.src.utils.update_classroom import update_classroom as db_update_classroom
 from Backend.src.DataBase.src.utils.class_list_menu import class_list_menu
 from Backend.src.DataBase.src.utils.student_list_menu import student_list_menu
 from Backend.src.DataBase.scripts.class_list_save_from_excel import class_list_save_from_excel
@@ -114,3 +115,12 @@ def search_classroom(classroom_code: str, user: User = Depends(require_coordinat
         return {"message": "Error while searching for classroom.", 'status': status, 'detail': msg}
     
     return {"classroom": result, "message": "Classroom found successfully.", 'status': status, 'detail': msg}
+
+@router.post("/update_classroom")
+def update_classroom(new_classroom_data: Classroom, user: User = Depends(require_coordinator)):
+    status, msg = db_update_classroom(new_classroom_data)
+    
+    if status == 'error' and status != 'success':
+        return {"message": "Error while updating classroom.", 'status': status, 'detail': msg}
+    
+    return {"message": "Classroom updated successfully.", 'status': status, 'detail': msg}
