@@ -6,6 +6,7 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
 from Frontend.src.Styles.load_qss import load_stylesheet
 from Frontend.src.Coordinator.UploadPages.Upload_class import UploadClassList
+from Frontend.src.Coordinator.UploadPages.Upload_student import UploadStudentList
 
 class CoordinatorDashboard(QWidget):
     def __init__(self, controller, user_info=None):
@@ -76,7 +77,7 @@ class CoordinatorDashboard(QWidget):
         self.general_page.setLayout(g_layout)
 
         self.upload_classes_page = UploadClassList(self.user_info, self)
-        self.upload_students_page = self.create_placeholder_page("📚 Öğrenci listesi yükleme alanı yakında aktif.")
+        self.upload_students_page = UploadStudentList(self.user_info, self)
         self.insert_classroom_page = self.create_placeholder_page("🏫 Sınıf ekleme alanı yakında aktif.")
         self.student_list_page = self.create_placeholder_page("👨‍🎓 Öğrenci listesi yakında aktif.")
         self.class_list_page = self.create_placeholder_page("📖 Ders listesi yakında aktif.")
