@@ -1,5 +1,4 @@
 import sys
-import requests
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLineEdit, QPushButton,
     QVBoxLayout, QLabel, QFrame, QGraphicsDropShadowEffect
@@ -16,7 +15,6 @@ class LoginWindow(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        # ---- Genel pencere ayarları ----
         self.setWindowTitle("Kullanıcı Giriş Ekranı")
         self.setMinimumSize(800, 500)
         self.card = QFrame()
@@ -24,19 +22,16 @@ class LoginWindow(QWidget):
         
         self.setStyleSheet(load_stylesheet("Frontend/src/Styles/login.qss"))
 
-        # Gölge efekti
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(30)
         shadow.setOffset(0, 0)
         shadow.setColor(QColor(0, 0, 0, 180))
         self.card.setGraphicsEffect(shadow)
 
-        # Başlık
         title = QLabel("Kullanıcı Giriş Paneli")
         title.setFont(QFont("Segoe UI", 22, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
 
-        # Inputlar
         font = QFont("Segoe UI", 12)
         self.email_input = QLineEdit()
         self.email_input.setPlaceholderText("E-posta adresiniz")
@@ -48,12 +43,10 @@ class LoginWindow(QWidget):
         self.password_input.setFont(font)
         self.password_input.returnPressed.connect(self.handle_login)
 
-        # Giriş butonu
         self.login_button = QPushButton("Giriş Yap")
         self.login_button.setFont(QFont("Segoe UI", 12, QFont.Bold))
         self.login_button.clicked.connect(self.handle_login)
 
-        # Bilgi etiketi (örnek hata mesajı için)
         self.status_label = QLabel("")
         self.status_label.setFont(QFont("Segoe UI", 10))
         self.status_label.setAlignment(Qt.AlignCenter)
@@ -71,13 +64,11 @@ class LoginWindow(QWidget):
         layout.addWidget(self.status_label)
         self.card.setLayout(layout)
 
-        # Ana layout — kartı ortala
         main_layout = QVBoxLayout(self)
         main_layout.addStretch()
         main_layout.addWidget(self.card, alignment=Qt.AlignCenter)
         main_layout.addStretch()
 
-    # ---- Login işlemi ----
     def handle_login(self):
         email = self.email_input.text().strip()
         password = self.password_input.text().strip()
@@ -123,7 +114,6 @@ class LoginWindow(QWidget):
         else:
             self.status_label.setText("✅ Giriş başarılı!")
 
-# ---- Main ----
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = LoginWindow()

@@ -9,6 +9,7 @@ from Frontend.src.Admin.UploadPages.upload_class import UploadClassList
 from Frontend.src.Admin.UploadPages.upload_student import uploadStudentList
 from Frontend.src.Admin.InsertCoordinator.insert_coordinator import InsertCoordinator
 from Frontend.src.Styles.load_qss import load_stylesheet
+from Frontend.src.Admin.Classroom.clasroomPage import ClassroomPage
 
 class AdminDashboard(QWidget):
     def __init__(self, parent, user_info=None):
@@ -78,6 +79,8 @@ class AdminDashboard(QWidget):
         
         self.inser_coordinator_page = InsertCoordinator(self.user_info, self)
 
+        self.classroom_page = ClassroomPage(self.stack, self.user_info)
+
         self.empty_page = QWidget()
         e_layout = QVBoxLayout()
         e_label = QLabel("Bu bölüm henüz aktif değil.")
@@ -90,6 +93,7 @@ class AdminDashboard(QWidget):
         self.stack.addWidget(self.upload_classes_page)
         self.stack.addWidget(self.upload_students_page)
         self.stack.addWidget(self.inser_coordinator_page)
+        self.stack.addWidget(self.classroom_page)
         self.stack.addWidget(self.empty_page)
         self.stack.addWidget(self.empty_page)
         self.stack.addWidget(self.empty_page)
