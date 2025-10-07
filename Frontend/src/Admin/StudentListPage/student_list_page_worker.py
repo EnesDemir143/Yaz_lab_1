@@ -16,7 +16,7 @@ class Student_list_search_worker(QThread):
         try:
             headers = {"Authorization": f"Bearer {self.userinfo['token']}"}
             url = f"{API_BASE}/{self.endpoint}"
-            resp = requests.get(url, headers=headers, data=self.data, timeout=30)
+            resp = requests.post(url, headers=headers, data=self.data, timeout=30)
 
             try:
                 result = resp.json()

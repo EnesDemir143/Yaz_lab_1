@@ -67,7 +67,7 @@ class StudentListPage(QWidget):
             self.result_layout.addWidget(QLabel("❌ Geçersiz öğrenci numarası."))
             return
 
-        self.worker = Student_list_search_worker('student_list_filter', student_id, self.user_info)
+        self.worker = Student_list_search_worker('student_list_filter', {'student_num': student_id}, self.user_info)
         
         self.worker.finished.connect(self.on_add_finished)
         self.worker.start()
@@ -75,14 +75,14 @@ class StudentListPage(QWidget):
         self.search_box.clear()
         
     def on_add_finished(self, result):
-        self.result_layout.takeAt(0)  # Önceki sonucu temizle
+        self.result_layout.takeAt(0)  
         self.class_list.clear()
 
         if "error" in result.get("status", ""):
-            self.result_layout.addWidget(QLabel(f"❌ Hata: {result['detail']} {result.get('message', '')}"))
+            self.result_layout.addWidget(QLabel(f"❌ Hata: {result.get('message', '')}"))
             if self.parent_dashboard:
                 self.parent_dashboard.text_output.append(
-                    f"❌ Hata: {result['detail']} {result.get('message', '')}\n"
+                    f"❌ Hata: {result.get('message', '')}\n"
                 )
             return
 

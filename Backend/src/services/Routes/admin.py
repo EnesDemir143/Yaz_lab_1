@@ -60,7 +60,7 @@ async def upload_students_list(uploaded_department: str = Form(...), user: User 
     return {"message": "Student list uploaded successfully", 'status': status, 'detail': msg}
 
 @router.post("/student_list_filter")
-def student_list_filter(student_num: str, user: User = Depends(require_admin)):
+def student_list_filter(student_num: str = Form(...), user: User = Depends(require_admin)):
     name, surname, classes = None, None, []
     
     try:
@@ -78,7 +78,7 @@ def student_list_filter(student_num: str, user: User = Depends(require_admin)):
             name = record.get('name')
         if surname is None:
             surname = record.get('surname')
-        classes.append((record.get('class_name'), record.get('class_code')))
+        classes.append((record.get('class_name'), record.get('class_id')))
         
     return {'name': name, 'surname': surname, 'classes': classes, "message": "Records fetched successfully.", 'status': 'success'}
 
