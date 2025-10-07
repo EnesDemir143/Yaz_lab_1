@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QFont, QColor, QIcon
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from Frontend.src.Admin.Dashboard.admin_dashboard import AdminDashboard
+from Frontend.src.Coordinator.Dashboard.CoordinatorDashboard import CoordinatorDashboard
 from Frontend.src.Login.loginWorker import LoginWorker
 from Frontend.src.Styles.load_qss import load_stylesheet
 
@@ -111,8 +112,11 @@ class LoginWindow(QWidget):
             self.hide()
         elif role == "coordinator":
             self.status_label.setText("✅ Koordinatör girişi başarılı!")
+            self.dashboard = CoordinatorDashboard(parent=self, user_info=self.userinfo)
+            self.dashboard.show()
+            self.hide()
         else:
-            self.status_label.setText("✅ Giriş başarılı!")
+            self.status_label.setText("⚠️ Bilinmeyen kullanıcı rolü.")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
