@@ -7,7 +7,7 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
 from Frontend.src.Admin.UploadPages.upload_class import UploadClassList
 from Frontend.src.Admin.UploadPages.upload_student import uploadStudentList
-
+from Frontend.src.Admin.InsertCoordinator.insert_coordinator import InsertCoordinator
 
 def load_stylesheet(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
@@ -78,6 +78,8 @@ class AdminDashboard(QWidget):
         self.upload_classes_page = UploadClassList(self.user_info, self)
         
         self.upload_students_page = uploadStudentList(self.user_info, self)
+        
+        self.inser_coordinator_page = InsertCoordinator(self.user_info, self)
 
         self.empty_page = QWidget()
         e_layout = QVBoxLayout()
@@ -90,6 +92,7 @@ class AdminDashboard(QWidget):
         self.stack.addWidget(self.general_page)
         self.stack.addWidget(self.upload_classes_page)
         self.stack.addWidget(self.upload_students_page)
+        self.stack.addWidget(self.inser_coordinator_page)
         self.stack.addWidget(self.empty_page)
         self.stack.addWidget(self.empty_page)
         self.stack.addWidget(self.empty_page)

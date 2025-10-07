@@ -11,7 +11,7 @@ class HashPassword:
     
     def verify_password(self, password, hashed):
         try:
-            self.password_Hasher.verify(hashed, password)
+            self.password_Hasher.verify(password, hashed)
             return True
         except VerifyMismatchError:
             return False

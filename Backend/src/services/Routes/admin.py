@@ -17,9 +17,9 @@ import io
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
-@router.get("/insert_coordinator")
-def insert_coordinator(user: User = Depends(require_admin)):
-    status, msg = insert_department_coordinator(user)
+@router.post("/insert_coordinator")
+async def insert_coordinator(coordinator: User, user: User = Depends(require_admin)):
+    status, msg = insert_department_coordinator(coordinator)
     
     if status == 'error' and status != 'success':
         return {"message": "Error while inserting coordinator.", 'status': status, 'detail': msg}
