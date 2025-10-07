@@ -56,6 +56,7 @@ class AdminDashboard(QWidget):
         sidebar.addWidget(sidebar_label)
         sidebar.addWidget(self.menu)
         sidebar.addStretch()
+        sidebar.addWidget(logout_btn)   
 
         self.title_label = QLabel("Admin Dashboard")
         self.title_label.setFont(QFont("Segoe UI", 20, QFont.Bold))

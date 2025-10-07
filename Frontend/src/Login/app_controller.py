@@ -22,7 +22,6 @@ class AppController:
         self.dashboard.show()
 
     def logout(self):
-        # Dashboard’ı kapat, yeni login ekranını aç
         self.dashboard.close()
         self.login_window = LoginWindow(controller=self)
         self.login_window.show()

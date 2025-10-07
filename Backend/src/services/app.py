@@ -27,14 +27,14 @@ def create_access_token(data: dict, expires_minutes: int = 60):
 
 @app.post("/login")
 def login(user: User):
-    role = get_current_role(user)
+    role, department = get_current_role(user)
 
     if role not in ["admin", "coordinator"]:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token({
         "email": user.email,
-        "department": user.department,
+        "department": department,
         "role": role
     })
 
@@ -42,6 +42,6 @@ def login(user: User):
         "message": "Login successful",
         "role": role,
         "email": user.email,
-        "department": user.department,
+        "department": department,
         "token": token
     }
