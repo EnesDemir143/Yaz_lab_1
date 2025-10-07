@@ -5,10 +5,13 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 from Frontend.src.Styles.load_qss import load_stylesheet
+from Frontend.src.Admin.StudentListPage.student_list_page_worker import Student_list_search_worker
 
 class StudentListPage(QWidget):
-    def __init__(self):
+    def __init__(self, user_info, parent_dashboard):
         super().__init__()
+        self.user_info = user_info
+        self.parent_dashboard = parent_dashboard
         self.init_ui()
 
     def init_ui(self):
@@ -40,7 +43,7 @@ class StudentListPage(QWidget):
         self.search_box = QLineEdit()
         self.search_box.setPlaceholderText("Öğrenci numarasını giriniz...")
         self.search_button = QPushButton("Ara")
-        self.search_button.clicked.connect(self.search_student)
+        self.search_button.clicked.connect(self.search_student_action)
         search_layout.addWidget(self.search_box)
         search_layout.addWidget(self.search_button)
         layout.addLayout(search_layout)
@@ -57,43 +60,50 @@ class StudentListPage(QWidget):
 
         self.setLayout(layout)
 
-    def search_student(self):
+    def search_student_action(self):
         student_id = self.search_box.text().strip()
 
-        # Basit örnek veri tabanı gibi:
-        students = {
-            "260201001": {
-                "name": "Ayşe Yılmaz",
-                "courses": [
-                    ("Algoritmalar", "CSE301"),
-                    ("Veri Yapıları", "CSE201")
-                ]
-            },
-            "260201002": {
-                "name": "Ahmet Demir",
-                "courses": [
-                    ("Veri Tabanı", "CSE303"),
-                    ("Yapay Zeka", "CSE401")
-                ]
-            }
-        }
+        if not student_id.isdigit() or not student_id:
+            self.result_layout.addWidget(QLabel("❌ Geçersiz öğrenci numarası."))
+            return
 
+        self.worker = Student_list_search_worker('student_list_filter', student_id, self.user_info)
+        
+        self.worker.finished.connect(self.on_add_finished)
+        self.worker.start()
+
+        self.search_box.clear()
+        
+    def on_add_finished(self, result):
         self.result_layout.takeAt(0)  # Önceki sonucu temizle
         self.class_list.clear()
 
-        if student_id in students:
-            student = students[student_id]
-            name_label = QLabel(f"<b>Öğrenci:</b> {student['name']}")
-            courses_label = QLabel("<b>Aldığı Dersler:</b>")
-            name_label.setStyleSheet("color: #ff5555; font-size: 16px;")
-            courses_label.setStyleSheet("color: #ff5555; font-size: 16px;")
-            self.result_layout.addWidget(name_label)
-            self.result_layout.addWidget(courses_label)
+        if "error" in result.get("status", ""):
+            self.result_layout.addWidget(QLabel(f"❌ Hata: {result['detail']} {result.get('message', '')}"))
+            if self.parent_dashboard:
+                self.parent_dashboard.text_output.append(
+                    f"❌ Hata: {result['detail']} {result.get('message', '')}\n"
+                )
+            return
 
-            for course, code in student["courses"]:
-                item = QListWidgetItem(f"- {course} (Kodu: {code})")
-                self.class_list.addItem(item)
-        else:
-            not_found = QLabel("❌ Öğrenci bulunamadı.")
-            not_found.setStyleSheet("color: #ff4444; font-size: 15px;")
-            self.result_layout.addWidget(not_found)
+        name = result.get("name", "Bilinmiyor")
+        surname = result.get("surname", "Bilinmiyor")
+        classes = result.get("classes", [])
+
+        self.result_layout.addWidget(QLabel(f"✅ Sonuç: {name} {surname}"))
+
+        if not classes:
+            self.result_layout.addWidget(QLabel("❌ Bu öğrenciye ait ders bulunamadı."))
+            return
+
+        for class_name, class_code in classes:
+            item = QListWidgetItem(f"{class_name} ({class_code})")
+            item.setBackground(QColor("#f0f0f0"))
+            item.setFont(QFont("Segoe UI", 10))
+            self.class_list.addItem(item)
+
+        if self.parent_dashboard:
+            self.parent_dashboard.text_output.append(
+                f"✅ Başarılı: {name} {surname} adlı öğrencinin dersleri listelendi.\n"
+            )
+         
