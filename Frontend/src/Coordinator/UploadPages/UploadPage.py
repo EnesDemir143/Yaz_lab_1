@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
+from Frontend.src.Coordinator.UploadPages.upload_worker import UploadWorker
 
 
 class UploadClassList(QWidget):
@@ -22,7 +23,7 @@ class UploadClassList(QWidget):
         title.setFont(QFont("Segoe UI", 16, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
 
-        desc = QLabel("Yüklenecek Excel dosyasını ve bölümünüzü seçin:")
+        desc = QLabel("Yüklenecek Excel dosyasını seçiniz ")
         desc.setAlignment(Qt.AlignCenter)
         desc.setStyleSheet("color: #aaa;")
 
@@ -66,11 +67,9 @@ class UploadClassList(QWidget):
             QMessageBox.warning(self, "Uyarı", "Lütfen bir Excel dosyası seçin.")
             return
 
-        department = self.department_box.currentText()
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(10)
 
-        # Endpoint'i parent üzerinden alıyoruz
         if not self.parent_dashboard or not hasattr(self.parent_dashboard, "current_endpoint"):
             QMessageBox.warning(self, "Uyarı", "Geçerli bir işlem seçilmedi.")
             return
@@ -79,7 +78,6 @@ class UploadClassList(QWidget):
             self.parent_dashboard.current_endpoint,
             self.file_path,
             self.user_info,
-            department=department
         )
         self.worker.finished.connect(self.on_upload_finished)
         self.worker.start()
@@ -101,6 +99,5 @@ class UploadClassList(QWidget):
                 self.parent_dashboard.text_output.append(f"✅ {detail}\n")
             QMessageBox.information(self, "Başarılı", f"message: {msg}\n\n{detail}")
 
-        # Başarılı olunca ana sayfaya dön
         if self.parent_dashboard:
             self.parent_dashboard.menu.setCurrentRow(0)
