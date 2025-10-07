@@ -9,6 +9,7 @@ from Frontend.src.Coordinator.UploadPages.Upload_class import UploadClassList
 from Frontend.src.Coordinator.UploadPages.Upload_student import UploadStudentList
 from Frontend.src.Coordinator.StudentListPage.student_list_page import StudentListPage
 from Frontend.src.Coordinator.Classroom.clasroomPage import ClassroomPage
+from Frontend.src.Coordinator.ClassList.class_list_page import ClassListPage
 
 
 class CoordinatorDashboard(QWidget):
@@ -83,7 +84,7 @@ class CoordinatorDashboard(QWidget):
         self.upload_students_page = UploadStudentList(self.user_info, self)
         self.student_list_page = StudentListPage(self.user_info, self)
         self.insert_classroom_page = ClassroomPage(self.stack, self.user_info)
-        self.class_list_page = self.create_placeholder_page("📖 Ders listesi yakında aktif.")
+        self.class_list_page = ClassListPage(self.user_info, self)
 
         self.stack.addWidget(self.general_page)
         self.stack.addWidget(self.upload_classes_page)

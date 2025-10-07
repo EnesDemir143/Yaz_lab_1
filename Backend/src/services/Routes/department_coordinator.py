@@ -11,7 +11,6 @@ from Backend.src.DataBase.src.structures.user import User
 from Backend.src.services.Utils.check_if_coordinator import require_coordinator
 from Backend.src.DataBase.src.utils.search_classroom import search_classroom as db_search_classroom
 from Backend.src.DataBase.src.utils.delete_classroom import delete_classroom as db_delete_classroom
-from Backend.src.DataBase.src.utils.get_departments import get_departments as db_get_departments
 
 import io
 
@@ -71,7 +70,7 @@ def student_list_filter(student_num: str = Form(...), user: User = Depends(requi
         
     return {'name': name, 'surname': surname, 'classes': classes, "message": "Records fetched successfully.", 'status': 'success'}
 
-@router.post("/all_classes")
+@router.get("/all_classes")
 def all_classes(user: User = Depends(require_coordinator)):
     class_dict = {}
 
