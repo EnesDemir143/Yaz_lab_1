@@ -86,28 +86,49 @@ def student_list_filter(student_num: str = Form(...), user: User = Depends(requi
 @router.post("/all_classes")
 def all_classes(department: str = Form(...), user: User = Depends(require_admin)):
     class_dict = {}
-    
+
     try:
-        classes = class_list_menu(department)
-        
-        for cls in classes:
-            if cls['class_id'] not in classes:
-                classes[cls['class_id']] = {
-                    'class_id': cls['class_id'],
+        classes_list, status, msg = class_list_menu(department)
+
+        if status == 'error':
+            return {
+                'classes': {},
+                "message": "Error while fetching classes.",
+                'status': 'error',
+                'detail': msg
+            }
+
+        for cls in classes_list:
+            class_id = cls['class_id']
+
+            if class_id not in class_dict:
+                class_dict[class_id] = {
+                    'class_id': class_id,
                     'class_name': cls['class_name'],
                     'students': []
                 }
+
             if cls['student_num']:
-                classes[cls['class_id']]['students'].append({
+                class_dict[class_id]['students'].append({
                     'student_num': cls['student_num'],
                     'name': cls['name'],
                     'surname': cls['surname']
                 })
-        
+
     except Exception as e:
-        return {'classes': class_dict, "message": "Error while fetching classes.", 'status': 'error', 'detail': str(e)}
-    
-    return {'classes': class_dict, "message": "Classes fetched successfully.", 'status': 'success'}
+        return {
+            'classes': class_dict,
+            "message": "Error while fetching classes.",
+            'status': 'error',
+            'detail': str(e)
+        }
+
+    return {
+        'classes': class_dict,
+        "message": "Classes fetched successfully.",
+        'status': 'success'
+    }
+
 
 @router.post("/insert_classroom")
 def insert_classroom(classroom: Classroom, user: User = Depends(require_admin)):
@@ -147,7 +168,6 @@ def delete_classroom(classroom_code: str, user: User = Depends(require_admin)):
 
 @router.get("/get_departments")
 def get_departments(user: User = Depends(require_admin)):
-    db_get_departments()
     departments, status, msg = db_get_departments()
     
     if status == 'error' and status != 'success':

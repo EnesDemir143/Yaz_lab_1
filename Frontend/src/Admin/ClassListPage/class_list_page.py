@@ -14,63 +14,13 @@ class ClassListPage(QWidget):
         super().__init__()
         self.user_info = user_info
         self.parent_dashboard = parent_dashboard
-        self.department_names = []  # boş başlat
+
+        # Verileri cache için
+        self.departments_data = {}
+        self.classes_data = {}
 
         self.init_ui()
-        self.load_departments()
-
-    def load_departments(self):
-        self.get_departments_worker = departments_list_worker("get_departments", self.user_info)
-        self.get_departments_worker.finished.connect(self.handle_departments_response)
-        self.get_departments_worker.start()
-
-    def handle_departments_response(self, result):
-        if result.get('status') == 'success':
-            departments = result.get('departments', [])
-            self.department_names = [d['department'] for d in departments]
-
-            for dept in self.department_names:
-                item = QListWidgetItem(dept)
-                self.department_list.addItem(item)
-
-        else:
-            self.student_title.setText("Bölümler yüklenemedi!")
-
-    def show_classes_for_department(self, item):
-        department = item.text()
-        self.class_list.clear()
-        self.student_list.clear()
-
-        worker = Class_list_page_worker("all_classes", {"department": department}, self.user_info)
-        worker.finished.connect(self.handle_classes_response)
-        worker.start()
-
-    def handle_classes_response(self, result):
-        if result.get('status') == 'success':
-            self.class_list.clear()
-            classes = result.get('classes', [])
-            for cls in classes:
-                item = QListWidgetItem(f"{cls['code']} - {cls['name']}")
-                item.setData(Qt.UserRole, cls['code'])
-                self.class_list.addItem(item)
-        else:
-            self.student_title.setText("Dersler yüklenemedi!")
-
-    def show_students_for_class(self, item):
-        class_code = item.data(Qt.UserRole)
-        self.student_list.clear()
-
-        worker = Class_list_page_worker("students_for_class", {"class_code": class_code}, self.user_info)
-        worker.finished.connect(self.handle_students_response)
-        worker.start()
-
-    def handle_students_response(self, result):
-        if result.get('status') == 'success':
-            students = result.get('students', [])
-            for s in students:
-                self.student_list.addItem(f"{s['student_num']} - {s['name']} {s['surname']}")
-        else:
-            self.student_title.setText("Öğrenciler yüklenemedi!")
+        self.load_all_data()
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -87,13 +37,19 @@ class ClassListPage(QWidget):
         layout.addWidget(QLabel("Bölümler:"))
         layout.addWidget(self.department_list)
 
-        # Ders listesi
+        # Ders listesi (başta gizli)
+        self.class_frame = QFrame()
+        self.class_layout = QVBoxLayout(self.class_frame)
+
         self.class_list = QListWidget()
         self.class_list.itemClicked.connect(self.show_students_for_class)
-        layout.addWidget(QLabel("Dersler:"))
-        layout.addWidget(self.class_list)
 
-        # Öğrenci listesi alanı
+        self.class_layout.addWidget(QLabel("Dersler:"))
+        self.class_layout.addWidget(self.class_list)
+        layout.addWidget(self.class_frame)
+        self.class_frame.setVisible(False)
+
+        # Öğrenci listesi (başta gizli)
         self.student_frame = QFrame()
         self.student_layout = QVBoxLayout(self.student_frame)
 
@@ -104,8 +60,66 @@ class ClassListPage(QWidget):
         self.student_list = QListWidget()
         self.student_layout.addWidget(self.student_list)
 
-        layout.addWidget(QLabel("Öğrenciler:"))
         layout.addWidget(self.student_frame)
+        self.student_frame.setVisible(False)
+
+    def load_all_data(self):
+        self.get_departments_worker = departments_list_worker("get_departments", self.user_info)
+        self.get_departments_worker.finished.connect(self.handle_departments_response)
+        self.get_departments_worker.start()
+        self.class_workers = []  # ✅ thread’leri burada tut
+
+    def handle_departments_response(self, result):
+        if result.get('status') == 'success':
+            print("Departments fetched successfully.")
+            departments = result.get('departments', [])
+            for dept_name in departments:
+                self.departments_data[dept_name] = {}
+                item = QListWidgetItem(dept_name)
+                self.department_list.addItem(item)
+
+                worker = Class_list_page_worker("all_classes", {"department": dept_name}, self.user_info)
+                worker.finished.connect(lambda result, dept=dept_name: self.handle_classes_response(result, dept))
+                worker.start()
+                self.class_workers.append(worker)  # ✅ listeye ekle
+        else:
+            self.student_title.setText("Bölümler yüklenemedi!")
 
 
-    
+    def handle_classes_response(self, result, department):
+        if result.get('status') == 'success':
+            classes = result.get('classes', {})
+            for cls_id, cls in classes.items():
+                if department not in self.departments_data:
+                    self.departments_data[department] = {}
+                self.departments_data[department][cls_id] = cls
+        else:
+            self.student_title.setText(f"{department} bölümü için dersler yüklenemedi!")
+
+
+    def show_classes_for_department(self, item):
+        department = item.text()
+        self.class_list.clear()
+        self.student_list.clear()
+        self.class_frame.setVisible(True)
+        self.student_frame.setVisible(False)
+
+        classes = self.departments_data.get(department, {})
+        for cls_id, cls in classes.items():
+            item = QListWidgetItem(f"{cls['class_id']} - {cls['class_name']}")
+            item.setData(Qt.UserRole, cls)
+            self.class_list.addItem(item)
+
+    def show_students_for_class(self, item):
+        cls = item.data(Qt.UserRole)
+        students = cls.get('students', [])
+
+        self.student_list.clear()
+        self.student_title.setText(f"📖 {cls['class_id']} - {cls['class_name']} Dersi Alan Öğrenciler:")
+        self.student_frame.setVisible(True)
+
+        if not students:
+            self.student_list.addItem("Bu derse kayıtlı öğrenci yok.")
+        else:
+            for s in students:
+                self.student_list.addItem(f"{s['student_num']} - {s['name']} {s['surname']}")
