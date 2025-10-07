@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QPushButton,
     QListWidgetItem, QTextEdit, QStackedLayout
 )
 from PyQt5.QtCore import Qt, QSize
@@ -13,9 +13,9 @@ from Frontend.src.Admin.StudentListPage.studentList_page import StudentListPage
 from Frontend.src.Admin.ClassListPage.class_list_page import ClassListPage
 
 class AdminDashboard(QWidget):
-    def __init__(self, parent, user_info=None):
+    def __init__(self, controller, user_info=None):
         super().__init__()
-        self.parent = parent
+        self.controller = controller
         self.user_info = user_info
         self.file_path = None
         self.init_ui()
@@ -29,7 +29,6 @@ class AdminDashboard(QWidget):
         sidebar = QVBoxLayout()
         content_layout = QVBoxLayout()
 
-        # ---- Menü ----
         sidebar_label = QLabel("🧭 Admin Menü")
         sidebar_label.setFont(QFont("Segoe UI", 18, QFont.Bold))
         sidebar_label.setAlignment(Qt.AlignCenter)
@@ -48,12 +47,16 @@ class AdminDashboard(QWidget):
             item.setSizeHint(QSize(180, 40))
             self.menu.addItem(item)
         self.menu.currentRowChanged.connect(self.switch_page)
+        
+        logout_btn = QPushButton("🚪 Çıkış Yap")    
+        logout_btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        logout_btn.setCursor(Qt.PointingHandCursor)
+        logout_btn.clicked.connect(self.logout)
 
         sidebar.addWidget(sidebar_label)
         sidebar.addWidget(self.menu)
         sidebar.addStretch()
 
-        # ---- Başlık ve bilgi ----
         self.title_label = QLabel("Admin Dashboard")
         self.title_label.setFont(QFont("Segoe UI", 20, QFont.Bold))
         self.title_label.setAlignment(Qt.AlignCenter)
@@ -63,10 +66,8 @@ class AdminDashboard(QWidget):
         self.info_label.setAlignment(Qt.AlignCenter)
         self.info_label.setStyleSheet("color: #aaa;")
 
-        # ---- Stack sayfaları ----
         self.stack = QStackedLayout()
 
-        # Genel sayfa
         self.general_page = QWidget()
         g_layout = QVBoxLayout()
         self.text_output = QTextEdit()
@@ -75,7 +76,6 @@ class AdminDashboard(QWidget):
         g_layout.addWidget(self.text_output)
         self.general_page.setLayout(g_layout)
 
-        # Ders listesi yükleme sayfası (yeni sınıftan)
         self.upload_classes_page = UploadClassList(self.user_info, self)
         
         self.upload_students_page = uploadStudentList(self.user_info, self)
@@ -103,9 +103,6 @@ class AdminDashboard(QWidget):
         self.stack.addWidget(self.classroom_page)
         self.stack.addWidget(self.student_list_page)
         self.stack.addWidget(self.class_list_page)
-        self.stack.addWidget(self.empty_page)
-        self.stack.addWidget(self.empty_page)
-        self.stack.addWidget(self.empty_page)
 
         content_layout.addWidget(self.title_label)
         content_layout.addWidget(self.info_label)
@@ -132,8 +129,5 @@ class AdminDashboard(QWidget):
             self.title_label.setText(title)
             self.stack.setCurrentIndex(index)
 
-    def closeEvent(self, event):
-        if self.parent:
-            self.parent.show()
-            self.parent.status_label.setText("")
-        event.accept()
+    def logout(self):
+        self.controller.logout()

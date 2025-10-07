@@ -24,7 +24,6 @@ class CoordinatorDashboard(QWidget):
         sidebar = QVBoxLayout()
         content_layout = QVBoxLayout()
 
-        # ---- Sol Menü ----
         sidebar_label = QLabel("🧭 Koordinatör Menü")
         sidebar_label.setFont(QFont("Segoe UI", 18, QFont.Bold))
         sidebar_label.setAlignment(Qt.AlignCenter)
@@ -44,7 +43,6 @@ class CoordinatorDashboard(QWidget):
             self.menu.addItem(item)
         self.menu.currentRowChanged.connect(self.switch_page)
 
-        # ---- Çıkış butonu ----
         logout_btn = QPushButton("🚪 Çıkış Yap")
         logout_btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
         logout_btn.setCursor(Qt.PointingHandCursor)
@@ -55,7 +53,6 @@ class CoordinatorDashboard(QWidget):
         sidebar.addStretch()
         sidebar.addWidget(logout_btn)
 
-        # ---- Üst bilgi ----
         self.title_label = QLabel("Coordinator Dashboard")
         self.title_label.setFont(QFont("Segoe UI", 20, QFont.Bold))
         self.title_label.setAlignment(Qt.AlignCenter)
@@ -67,10 +64,8 @@ class CoordinatorDashboard(QWidget):
         self.info_label.setAlignment(Qt.AlignCenter)
         self.info_label.setStyleSheet("color: #aaa;")
 
-        # ---- İçerik sayfaları ----
         self.stack = QStackedLayout()
 
-        # 0️⃣ Genel sayfa
         self.general_page = QWidget()
         g_layout = QVBoxLayout()
         self.text_output = QTextEdit()
@@ -79,14 +74,12 @@ class CoordinatorDashboard(QWidget):
         g_layout.addWidget(self.text_output)
         self.general_page.setLayout(g_layout)
 
-        # Diğer sayfalar placeholder
         self.upload_classes_page = self.create_placeholder_page("📁 Ders listesi yükleme alanı yakında aktif.")
         self.upload_students_page = self.create_placeholder_page("📚 Öğrenci listesi yükleme alanı yakında aktif.")
         self.insert_classroom_page = self.create_placeholder_page("🏫 Sınıf ekleme alanı yakında aktif.")
         self.student_list_page = self.create_placeholder_page("👨‍🎓 Öğrenci listesi yakında aktif.")
         self.class_list_page = self.create_placeholder_page("📖 Ders listesi yakında aktif.")
 
-        # Stack’e sayfaları ekle (index sırasıyla eşleşsin)
         self.stack.addWidget(self.general_page)
         self.stack.addWidget(self.upload_classes_page)
         self.stack.addWidget(self.upload_students_page)
@@ -94,20 +87,17 @@ class CoordinatorDashboard(QWidget):
         self.stack.addWidget(self.student_list_page)
         self.stack.addWidget(self.class_list_page)
 
-        # ---- İçerik alanı ----
         content_layout.addWidget(self.title_label)
         content_layout.addWidget(self.info_label)
         frame = QFrame()
         frame.setLayout(self.stack)
         content_layout.addWidget(frame)
 
-        # ---- Genel yerleşim ----
         main_layout.addLayout(sidebar, 1)
         main_layout.addLayout(content_layout, 3)
 
         self.menu.setCurrentRow(0)
 
-    # Basit placeholder sayfa oluşturucu
     def create_placeholder_page(self, message):
         w = QWidget()
         l = QVBoxLayout()
@@ -133,5 +123,4 @@ class CoordinatorDashboard(QWidget):
             self.stack.setCurrentIndex(index)
 
     def logout(self):
-        """AppController üzerinden logout işlemini tetikler"""
         self.controller.logout()
