@@ -11,8 +11,9 @@ from Frontend.src.Login.loginWorker import LoginWorker
 from Frontend.src.Styles.load_qss import load_stylesheet
 
 class LoginWindow(QWidget):
-    def __init__(self):
+    def __init__(self, controller):
         super().__init__()
+        self.controller = controller
         self.init_ui()
 
     def init_ui(self):
@@ -96,30 +97,17 @@ class LoginWindow(QWidget):
             self.status_label.setText("⚠️ Sunucudan token alınamadı.")
             return
 
-        self.status_label.setStyleSheet("color: #4CAF50;")
-
-        self.userinfo = {
+        user_info = {
             "email": result.get("email"),
             "department": result.get("department"),
             "role": role,
             "token": token
         }
 
-        if role == "admin":
-            self.status_label.setText("✅ Admin girişi başarılı!")
-            self.dashboard = AdminDashboard(user_info=self.userinfo, parent=self)
-            self.dashboard.show()
-            self.hide()
-        elif role == "coordinator":
-            self.status_label.setText("✅ Koordinatör girişi başarılı!")
-            self.dashboard = CoordinatorDashboard(parent=self, user_info=self.userinfo)
-            self.dashboard.show()
-            self.hide()
-        else:
-            self.status_label.setText("⚠️ Bilinmeyen kullanıcı rolü.")
+        self.controller.on_login_success(user_info)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = LoginWindow()
-    window.show()
+    from Frontend.src.Login.app_controller import AppController
+    controller = AppController()
     sys.exit(app.exec_())
