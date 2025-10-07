@@ -13,10 +13,9 @@ def class_list_save_from_excel(df: pd.DataFrame, department:str):
         print("Error while processing class list.", msg)
         return status, msg
                
-    class_list = ders_listesi_df.to_dict(orient="records")
     
     try:
-        insert_classes(class_list)
+        insert_classes(ders_listesi_df)
     except Exception as e:
         print("Error while inserting classes.", e)
         raise

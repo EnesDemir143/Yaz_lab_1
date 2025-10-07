@@ -1,6 +1,6 @@
 from Backend.src.DataBase.src.utils.update_classroom import update_classroom as db_update_classroom
 import pandas as pd
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, Form
 from Backend.src.DataBase.src.structures.classrooms import Classroom
 from Backend.src.DataBase.src.structures.user import User
 from Backend.src.DataBase.src.utils.class_list_menu import class_list_menu
@@ -29,9 +29,9 @@ def insert_coordinator(user: User = Depends(require_admin)):
     
 
 @router.post("/upload_classes_list") 
-async def upload_classes_list(user: User = Depends(require_admin), uploaded_department:str = None, file: UploadFile = File(...)):
+async def upload_classes_list(uploaded_department: str = Form(...), user: User = Depends(require_admin), file: UploadFile = File(...)):
     contents = await file.read()
-    
+
     df = pd.read_excel(io.BytesIO(contents), sheet_name="Ders Listesi", header=None)
     
     status, msg = class_list_save_from_excel(df, department=uploaded_department)
@@ -43,12 +43,12 @@ async def upload_classes_list(user: User = Depends(require_admin), uploaded_depa
 
 
 @router.post("/upload_students_list")
-async def upload_students_list(user: User = Depends(require_admin), file: UploadFile = File(...)):
+async def upload_students_list(user: User = Depends(require_admin), uploaded_department: str = None,  file: UploadFile = File(...)):
     contents = await file.file.read().decode("utf-8")
     
     df = pd.read_excel(io.BytesIO(contents))
     
-    return_dict = student_list_save_from_excel(df, department=user.department)
+    return_dict = student_list_save_from_excel(df, department=uploaded_department)
     
     status = return_dict.get('status', 'error')
     msg = return_dict.get('msg', '')

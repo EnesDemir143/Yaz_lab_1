@@ -1,57 +1,16 @@
-import sys
-import requests
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QListWidget, QListWidgetItem, QTextEdit,
     QProgressBar, QMessageBox, QFileDialog, QComboBox, QStackedLayout
 )
-from PyQt5.QtCore import Qt, QSize, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
+from Frontend.src.Admin.upload_file import UploadWorker
 
+def load_stylesheet(path: str) -> str:
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
 
-API_BASE = "http://127.0.0.1:8000/admin"
-
-
-# ---- Worker Thread ----
-class UploadWorker(QThread):
-    finished = pyqtSignal(dict)
-
-    def __init__(self, file_path: str, userinfo: dict, department, headers=None):
-        super().__init__()
-        self.file_path = file_path
-        self.userinfo = userinfo
-        self.department = department
-        self.headers = headers or {}
-
-    def run(self):
-        try:
-            headers = {"Authorization": f"Bearer {self.userinfo['token']}"}
-            with open(self.file_path, "rb") as f:
-                files = {
-                    "file": (
-                        self.file_path.split("/")[-1],
-                        f,
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                }
-                data = {"uploaded_department": self.department}
-                resp = requests.post(
-                    f"{API_BASE}/upload_classes_list",
-                    files=files,
-                    data=data,
-                    headers=headers, 
-                    timeout=30
-                )
-            try:
-                result = resp.json()
-            except Exception:
-                result = {"message": resp.text}
-            self.finished.emit(result)
-        except Exception as e:
-            self.finished.emit({"error": str(e)})
-
-
-# ---- Ana GUI ----
 class AdminDashboard(QWidget):
     def __init__(self, user_info=None):
         super().__init__()
@@ -62,44 +21,7 @@ class AdminDashboard(QWidget):
     def init_ui(self):
         self.setWindowTitle("Admin Dashboard | Yönetim Paneli")
         self.resize(1200, 750)
-        self.setStyleSheet("""
-            QWidget { background-color: #181a28; color: #f0f0f0; }
-            QListWidget {
-                background-color: rgba(255,255,255,0.05);
-                border: none;
-                border-radius: 12px;
-                padding: 10px;
-                color: #f0f0f0;
-            }
-            QListWidget::item:selected {
-                background-color: #4CAF50;
-                color: white;
-                border-radius: 8px;
-            }
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border-radius: 10px;
-                padding: 12px 15px;
-            }
-            QPushButton:hover { background-color: #45a049; }
-            QTextEdit {
-                background-color: rgba(255,255,255,0.08);
-                border: 1px solid rgba(255,255,255,0.1);
-                border-radius: 10px;
-                padding: 10px;
-                color: #ddd;
-                font-family: Consolas, monospace;
-            }
-            QComboBox {
-                background-color: #2a2c3a;
-                border: 1px solid rgba(255,255,255,0.2);
-                border-radius: 8px;
-                padding: 6px;
-                color: #f0f0f0;
-            }
-            QLabel { font-size: 14px; }
-        """)
+        self.setStyleSheet(load_stylesheet("Frontend/src/Admin/styles.qss"))
 
         # ---- Ana Layout ----
         main_layout = QHBoxLayout(self)
@@ -218,12 +140,18 @@ class AdminDashboard(QWidget):
         self.menu.setCurrentRow(0)
 
     def switch_page(self, index):
-        titles = [
-            "Genel", "Ders Listesi Yükle",
-            "Öğrenci Listesi Yükle", "Koordinatör Ekle", "Sınıf Ekle"
-        ]
-        self.title_label.setText(titles[index])
-        self.stack.setCurrentIndex(index)
+        mapping = {
+            0: ("general", "Genel", False),
+            1: ("upload_classes_list", "Ders Listesi Yükle", True),
+            2: ("upload_students_list", "Öğrenci Listesi Yükle", True),
+            3: ("insert_coordinator", "Koordinatör Ekle", False),
+            4: ("insert_classroom", "Sınıf Ekle", False),
+        }
+
+        if index in mapping:
+            self.current_endpoint, title, _ = mapping[index]
+            self.title_label.setText(title)
+            self.stack.setCurrentIndex(index)
 
     def select_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -241,8 +169,12 @@ class AdminDashboard(QWidget):
 
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(10)
-
-        self.worker = UploadWorker(self.file_path, self.user_info, department=department)
+        
+        if not hasattr(self, "current_endpoint") or not self.current_endpoint:
+            QMessageBox.warning(self, "Uyarı", "Lütfen önce bir işlem seçin.")
+            return
+    
+        self.worker = UploadWorker(self.current_endpoint, self.file_path, self.user_info, department=department)
         self.worker.finished.connect(self.on_upload_finished)
         self.worker.start()
 
@@ -257,5 +189,5 @@ class AdminDashboard(QWidget):
             msg = result.get("message", "İstek tamamlandı.")
             detail = result.get("detail", "")
             self.text_output.append(f"✅ {detail}\n")
-            QMessageBox.information(self, "Başarılı", f"message: {msg}", f"detail: {result['detail']}")
+            QMessageBox.information(self, "Başarılı", f"message: {msg}\n\n{result['detail']}")
         self.menu.setCurrentRow(0) 
