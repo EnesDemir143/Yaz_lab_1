@@ -6,23 +6,21 @@ from Backend.src.DataBase.scripts.student_list_save_from_excel import student_li
 from Backend.src.DataBase.src.utils.insert_classroom import insert_classroom_to_db
 from Backend.src.DataBase.src.structures.classrooms import Classroom
 import pandas as pd
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, Form, UploadFile, File
 from Backend.src.DataBase.src.structures.user import User
 from Backend.src.services.Utils.check_if_coordinator import require_coordinator
 from Backend.src.DataBase.src.utils.search_classroom import search_classroom as db_search_classroom
 from Backend.src.DataBase.src.utils.delete_classroom import delete_classroom as db_delete_classroom
+from Backend.src.DataBase.src.utils.get_departments import get_departments as db_get_departments
 
 import io
 
 router = APIRouter(prefix="/department_coordinator", tags=["department_coordinator"])
 
-@router.get("/coordinator_dashboard")
-def coordinator_dashboard(user: User = Depends(require_coordinator)):
-    pass
 
 @router.post("/upload_classes_list") 
 async def upload_classes_list(user: User = Depends(require_coordinator), file: UploadFile = File(...)):
-    contents = await file.file.read().decode("utf-8")
+    contents = await file.read()
     
     df = pd.read_excel(io.BytesIO(contents), sheet_name="Ders Listesi", header=None)
     
@@ -36,7 +34,7 @@ async def upload_classes_list(user: User = Depends(require_coordinator), file: U
 
 @router.post("/upload_students_list")
 async def upload_students_list(user: User = Depends(require_coordinator), file: UploadFile = File(...)):
-    contents = await file.file.read().decode("utf-8")
+    contents = await file.read()
     
     df = pd.read_excel(io.BytesIO(contents))
     
@@ -51,7 +49,7 @@ async def upload_students_list(user: User = Depends(require_coordinator), file: 
     return {"message": "Student list uploaded successfully", 'status': status, 'detail': msg}
 
 @router.post("/student_list_filter")
-def student_list_filter(student_num: str, user: User = Depends(require_coordinator)):
+def student_list_filter(student_num: str = Form(...), user: User = Depends(require_coordinator)):
     name, surname, classes = None, None, []
     
     try:
@@ -74,31 +72,51 @@ def student_list_filter(student_num: str, user: User = Depends(require_coordinat
     return {'name': name, 'surname': surname, 'classes': classes, "message": "Records fetched successfully.", 'status': 'success'}
 
 @router.post("/all_classes")
-def all_classes(department: str, user: User = Depends(require_coordinator)):
+def all_classes(user: User = Depends(require_coordinator)):
     class_dict = {}
-    
+
     try:
-        classes = class_list_menu(department)
-        
-        for cls in classes:
-            if cls['class_id'] not in classes:
-                classes[cls['class_id']] = {
-                    'class_id': cls['class_id'],
+        classes_list, status, msg = class_list_menu(user.department)
+
+        if status == 'error':
+            return {
+                'classes': {},
+                "message": "Error while fetching classes.",
+                'status': 'error',
+                'detail': msg
+            }
+
+        for cls in classes_list:
+            class_id = cls['class_id']
+
+            if class_id not in class_dict:
+                class_dict[class_id] = {
+                    'class_id': class_id,
                     'class_name': cls['class_name'],
                     'students': []
                 }
+
             if cls['student_num']:
-                classes[cls['class_id']]['students'].append({
+                class_dict[class_id]['students'].append({
                     'student_num': cls['student_num'],
                     'name': cls['name'],
                     'surname': cls['surname']
                 })
-        
-    except Exception as e:
-        return {'classes': class_dict, "message": "Error while fetching classes.", 'status': 'error', 'detail': str(e)}
-    
-    return {'classes': class_dict, "message": "Classes fetched successfully.", 'status': 'success'}
 
+    except Exception as e:
+        return {
+            'classes': class_dict,
+            "message": "Error while fetching classes.",
+            'status': 'error',
+            'detail': str(e)
+        }
+
+    return {
+        'classes': class_dict,
+        "message": "Classes fetched successfully.",
+        'status': 'success'
+    }
+    
 @router.post("/insert_classroom")
 def insert_classroom(classroom: Classroom, user: User = Depends(require_coordinator)):
         status, msg = insert_classroom_to_db(classroom)
