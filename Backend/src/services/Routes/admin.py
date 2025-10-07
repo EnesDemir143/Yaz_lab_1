@@ -43,8 +43,8 @@ async def upload_classes_list(uploaded_department: str = Form(...), user: User =
 
 
 @router.post("/upload_students_list")
-async def upload_students_list(user: User = Depends(require_admin), uploaded_department: str = None,  file: UploadFile = File(...)):
-    contents = await file.file.read().decode("utf-8")
+async def upload_students_list(uploaded_department: str = Form(...), user: User = Depends(require_admin),  file: UploadFile = File(...)):
+    contents = await file.read()
     
     df = pd.read_excel(io.BytesIO(contents))
     

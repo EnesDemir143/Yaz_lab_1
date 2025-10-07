@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
 from Frontend.src.Admin.upload_class import UploadClassList
+from Frontend.src.Admin.upload_student import uploadStudentList
 
 
 def load_stylesheet(path: str) -> str:
@@ -75,8 +76,9 @@ class AdminDashboard(QWidget):
 
         # Ders listesi yükleme sayfası (yeni sınıftan)
         self.upload_classes_page = UploadClassList(self.user_info, self)
+        
+        self.upload_students_page = uploadStudentList(self.user_info, self)
 
-        # Placeholder sayfalar
         self.empty_page = QWidget()
         e_layout = QVBoxLayout()
         e_label = QLabel("Bu bölüm henüz aktif değil.")
@@ -87,6 +89,7 @@ class AdminDashboard(QWidget):
         # Stack’e ekleme
         self.stack.addWidget(self.general_page)
         self.stack.addWidget(self.upload_classes_page)
+        self.stack.addWidget(self.upload_students_page)
         self.stack.addWidget(self.empty_page)
         self.stack.addWidget(self.empty_page)
         self.stack.addWidget(self.empty_page)

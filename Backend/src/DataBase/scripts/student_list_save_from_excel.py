@@ -18,7 +18,7 @@ def student_list_save_from_excel(student_list_df, department: str) -> None:
     for idx, row in student_list_df.iterrows():
         excel_row = idx + 2  
         try:
-            required_cols = ['Ad Soyad', 'ÖĞRENCİ NO', 'Sınıf', 'DERSLER']
+            required_cols = ['Ad Soyad', 'Öğrenci No', 'Sınıf', 'Ders']
             for col in required_cols:
                 if col not in row or pd.isna(row[col]) or str(row[col]).strip() == "":
                     return {
@@ -35,15 +35,15 @@ def student_list_save_from_excel(student_list_df, department: str) -> None:
                 }
                 
             try:
-                classes = [c.strip() for c in str(row['DERSLER']).split(',') if c.strip()]
+                classes = [c.strip() for c in str(row['Ders']).split(',') if c.strip()]
             except Exception as e_class:
                 return {
                     'status': 'error',
-                    'msg': f"[HATA] Satır {excel_row}: 'DERSLER' sütunu okunamadı veya geçersiz formatta | {e_class}"
+                    'msg': f"[HATA] Satır {excel_row}: 'Ders' sütunu okunamadı veya geçersiz formatta | {e_class}"
                 }
 
             student_info = {
-                'student_num': row['ÖĞRENCİ NO'],
+                'student_num': row['Öğrenci No'],
                 'name': name,
                 'surname': surname,
                 'grade': row['Sınıf'],
