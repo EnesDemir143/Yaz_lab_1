@@ -5,21 +5,20 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
-from Frontend.src.Admin.upload_file import UploadWorker
+from Frontend.src.Admin.UploadPages.upload_file import UploadWorker
 
-
-class uploadStudentList(QWidget):
+class UploadClassList(QWidget):
     def __init__(self, user_info, parent_dashboard=None):
         super().__init__()
         self.user_info = user_info
-        self.parent_dashboard = parent_dashboard  
+        self.parent_dashboard = parent_dashboard  # AdminDashboard referansı
         self.file_path = None
         self.init_ui()
 
     def init_ui(self):
         layout = QVBoxLayout()
 
-        title = QLabel("📁 Ögrenci Listesi Yükle")
+        title = QLabel("📁 Ders Listesi Yükle")
         title.setFont(QFont("Segoe UI", 16, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
 
@@ -111,5 +110,6 @@ class uploadStudentList(QWidget):
                 self.parent_dashboard.text_output.append(f"✅ {detail}\n")
             QMessageBox.information(self, "Başarılı", f"message: {msg}\n\n{detail}")
 
+        # Başarılı olunca ana sayfaya dön
         if self.parent_dashboard:
             self.parent_dashboard.menu.setCurrentRow(0)

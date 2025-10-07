@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont, QColor, QIcon
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from Frontend.src.Admin.admin_dashboard import AdminDashboard
+from Frontend.src.Admin.Dashboard.admin_dashboard import AdminDashboard
 
 LOGIN_API_URL = "http://127.0.0.1:8000/login"
 
