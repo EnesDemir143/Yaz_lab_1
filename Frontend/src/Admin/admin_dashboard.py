@@ -250,11 +250,12 @@ class AdminDashboard(QWidget):
         self.progress_bar.setValue(100)
         self.progress_bar.setVisible(False)
 
-        if "error" in result:
-            QMessageBox.critical(self, "Hata", result["error"])
-            self.text_output.append(f"❌ Hata: {result['error']}\n")
+        if "error" in result.get("status", ""):
+            QMessageBox.critical(self, "Hata", result["detail"])
+            self.text_output.append(f"❌ Hata: {result['detail']} {result['message']}\n ")
         else:
             msg = result.get("message", "İstek tamamlandı.")
-            self.text_output.append(f"✅ Ders listesi yüklendi.\nℹ️ {msg}\n")
-            QMessageBox.information(self, "Başarılı", msg)
-        self.menu.setCurrentRow(0)  # işlem bitince “Genel” sekmesine dön
+            detail = result.get("detail", "")
+            self.text_output.append(f"✅ {detail}\n")
+            QMessageBox.information(self, "Başarılı", f"message: {msg}", f"detail: {result['detail']}")
+        self.menu.setCurrentRow(0) 

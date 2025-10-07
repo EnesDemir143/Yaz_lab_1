@@ -3,7 +3,7 @@ from Backend.src.DataBase.src.utils.insert_classes import insert_classes
 import pandas as pd
 
 def class_list_save_from_excel(df: pd.DataFrame, department:str):
-    return_dict = process_class_list(df, department, sheet_name="Ders Listesi")
+    return_dict = process_class_list(df, department)
     
     ders_listesi_df = return_dict.get('df', df)
     status = return_dict.get('status', 'error')
