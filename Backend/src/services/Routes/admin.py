@@ -29,12 +29,12 @@ def insert_coordinator(user: User = Depends(require_admin)):
     
 
 @router.post("/upload_classes_list") 
-async def upload_classes_list(user: User = Depends(require_admin), file: UploadFile = File(...)):
-    contents = await file.file.read().decode("utf-8")
+async def upload_classes_list(user: User = Depends(require_admin), uploaded_department:str = None, file: UploadFile = File(...)):
+    contents = await file.read()
     
     df = pd.read_excel(io.BytesIO(contents), sheet_name="Ders Listesi", header=None)
     
-    status, msg = class_list_save_from_excel(df, department=user.department)
+    status, msg = class_list_save_from_excel(df, department=uploaded_department)
     
     if status == 'error' and status != 'success':
         return {"message": "Error while uploading class list.", 'status': status, 'detail': msg}

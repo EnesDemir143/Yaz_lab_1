@@ -1,17 +1,60 @@
 import sys
+import requests
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QListWidget, QListWidgetItem, QTextEdit,
     QProgressBar, QMessageBox, QFileDialog, QComboBox, QStackedLayout
 )
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import Qt, QSize, QThread, pyqtSignal
 from PyQt5.QtGui import QFont
 
 
+API_BASE = "http://127.0.0.1:8000/admin"
+
+
+# ---- Worker Thread ----
+class UploadWorker(QThread):
+    finished = pyqtSignal(dict)
+
+    def __init__(self, file_path: str, userinfo: dict, department, headers=None):
+        super().__init__()
+        self.file_path = file_path
+        self.userinfo = userinfo
+        self.department = department
+        self.headers = headers or {}
+
+    def run(self):
+        try:
+            with open(self.file_path, "rb") as f:
+                files = {
+                    "file": (
+                        self.file_path.split("/")[-1],
+                        f,
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                }
+                data = {"uploaded_department": self.department}
+                resp = requests.post(
+                    f"{API_BASE}/upload_classes_list",
+                    files=files,
+                    data=data,
+                    headers=self.headers,
+                    timeout=30
+                )
+            try:
+                result = resp.json()
+            except Exception:
+                result = {"message": resp.text}
+            self.finished.emit(result)
+        except Exception as e:
+            self.finished.emit({"error": str(e)})
+
+
+# ---- Ana GUI ----
 class AdminDashboard(QWidget):
     def __init__(self, user_info=None):
         super().__init__()
-        self.user_info = user_info or {"name": "Admin", "department": "Bilinmiyor"}
+        self.user_info = user_info 
         self.file_path = None
         self.init_ui()
 
@@ -84,20 +127,20 @@ class AdminDashboard(QWidget):
         sidebar.addWidget(self.menu)
         sidebar.addStretch()
 
-        # ---- Ortadaki kısım (başlık ve içerik) ----
+        # ---- Başlık ve Bilgi ----
         self.title_label = QLabel("Admin Dashboard")
         self.title_label.setFont(QFont("Segoe UI", 20, QFont.Bold))
         self.title_label.setAlignment(Qt.AlignCenter)
 
-        self.info_label = QLabel(f"{self.user_info['name']} | {self.user_info['department']}")
+        self.info_label = QLabel(f"{self.user_info['email']} | {self.user_info['department']}")
         self.info_label.setFont(QFont("Segoe UI", 10))
         self.info_label.setAlignment(Qt.AlignCenter)
         self.info_label.setStyleSheet("color: #aaa;")
 
-        # Stack yapısı: sayfalar arasında geçiş
+        # ---- Sayfa yönetimi (stack) ----
         self.stack = QStackedLayout()
 
-        # Sayfa 0 - Genel
+        # 0️⃣ Genel sayfası
         self.general_page = QWidget()
         g_layout = QVBoxLayout()
         self.text_output = QTextEdit()
@@ -106,9 +149,10 @@ class AdminDashboard(QWidget):
         g_layout.addWidget(self.text_output)
         self.general_page.setLayout(g_layout)
 
-        # Sayfa 1 - Ders Listesi Yükle
+        # 1️⃣ Ders listesi yükleme sayfası
         self.upload_classes_page = QWidget()
         u_layout = QVBoxLayout()
+
         title = QLabel("📁 Ders Listesi Yükle")
         title.setFont(QFont("Segoe UI", 16, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
@@ -135,30 +179,34 @@ class AdminDashboard(QWidget):
         self.upload_btn = QPushButton("📤 Yüklemeyi Başlat")
         self.upload_btn.clicked.connect(self.upload_action)
 
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+
         u_layout.addWidget(title)
         u_layout.addWidget(desc)
         u_layout.addLayout(file_layout)
         u_layout.addLayout(dept_layout)
         u_layout.addWidget(self.upload_btn)
+        u_layout.addWidget(self.progress_bar)
         u_layout.addStretch()
+
         self.upload_classes_page.setLayout(u_layout)
 
-        # Diğer sayfalar için placeholder
-        self.empty_page = QWidget()
-        empty_layout = QVBoxLayout()
+        # Placeholder diğer sayfalar
         placeholder = QLabel("Bu bölüm henüz aktif değil.")
         placeholder.setAlignment(Qt.AlignCenter)
-        empty_layout.addWidget(placeholder)
-        self.empty_page.setLayout(empty_layout)
+        self.empty_page = QWidget()
+        l = QVBoxLayout()
+        l.addWidget(placeholder)
+        self.empty_page.setLayout(l)
 
-        # Stack’e sayfaları ekle
-        self.stack.addWidget(self.general_page)       # 0
-        self.stack.addWidget(self.upload_classes_page) # 1
-        self.stack.addWidget(self.empty_page)         # 2 - öğrenci
-        self.stack.addWidget(self.empty_page)         # 3 - koordinatör
-        self.stack.addWidget(self.empty_page)         # 4 - sınıf
+        # stack ekleme
+        self.stack.addWidget(self.general_page)
+        self.stack.addWidget(self.upload_classes_page)
+        self.stack.addWidget(self.empty_page)
+        self.stack.addWidget(self.empty_page)
+        self.stack.addWidget(self.empty_page)
 
-        # ---- İçeriği birleştir ----
         content_layout.addWidget(self.title_label)
         content_layout.addWidget(self.info_label)
         content_layout.addLayout(self.stack)
@@ -166,10 +214,8 @@ class AdminDashboard(QWidget):
         main_layout.addLayout(sidebar, 1)
         main_layout.addLayout(content_layout, 3)
 
-        # Varsayılan olarak “Genel” açık
         self.menu.setCurrentRow(0)
 
-    # ---- Menü değiştiğinde ----
     def switch_page(self, index):
         titles = [
             "Genel", "Ders Listesi Yükle",
@@ -178,7 +224,6 @@ class AdminDashboard(QWidget):
         self.title_label.setText(titles[index])
         self.stack.setCurrentIndex(index)
 
-    # ---- Dosya seçimi ----
     def select_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "Excel Dosyası Seç", "", "Excel Files (*.xlsx *.xls)"
@@ -186,18 +231,29 @@ class AdminDashboard(QWidget):
         if file_path:
             self.file_label.setText(file_path.split("/")[-1])
             self.file_path = file_path
-        else:
-            self.file_path = None
 
-    # ---- Yükleme işlemi ----
     def upload_action(self):
         if not self.file_path:
             QMessageBox.warning(self, "Uyarı", "Lütfen bir Excel dosyası seçin.")
             return
         department = self.department_box.currentText()
-        QMessageBox.information(
-            self, "Bilgi",
-            f"Dosya: {self.file_path}\nBölüm: {department}\n\n(Burada API isteği yapılacak)"
-        )
-        # İşlem geçmişine yaz
-        self.text_output.append(f"📤 {self.file_path.split('/')[-1]} ({department}) yüklendi.\n")
+
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(10)
+
+        self.worker = UploadWorker(self.file_path, self.user_info, department=department)
+        self.worker.finished.connect(self.on_upload_finished)
+        self.worker.start()
+
+    def on_upload_finished(self, result):
+        self.progress_bar.setValue(100)
+        self.progress_bar.setVisible(False)
+
+        if "error" in result:
+            QMessageBox.critical(self, "Hata", result["error"])
+            self.text_output.append(f"❌ Hata: {result['error']}\n")
+        else:
+            msg = result.get("message", "İstek tamamlandı.")
+            self.text_output.append(f"✅ Ders listesi yüklendi.\nℹ️ {msg}\n")
+            QMessageBox.information(self, "Başarılı", msg)
+        self.menu.setCurrentRow(0)  # işlem bitince “Genel” sekmesine dön

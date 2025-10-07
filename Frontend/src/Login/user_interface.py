@@ -165,7 +165,8 @@ class LoginWindow(QWidget):
             if role == "admin":
                 self.status_label.setText("✅ Admin girişi başarılı!")
                 self.dashboard = AdminDashboard({
-                    "name": result.get("email"),
+                    "email": result.get("email"),
+                    "password": self.password_input.text().strip(),
                     "department": result.get("department")
                 })
                 self.dashboard.show()

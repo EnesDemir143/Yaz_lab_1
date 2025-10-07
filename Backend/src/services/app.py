@@ -15,7 +15,7 @@ def login(user: User):
 
     if role == "admin":
         print("Admin logged in")
-        return {"role": "admin", "email": user.email, "department": user.department}
+        return {"role": "admin", "email": user.email,  "department": user.department}
     elif role == "coordinator":
         print("Coordinator logged in")
         return {"role": "coordinator", "email": user.email, "department": user.department}
