@@ -79,8 +79,8 @@ class CoordinatorDashboard(QWidget):
 
         self.upload_classes_page = UploadClassList(self.user_info, self)
         self.upload_students_page = UploadStudentList(self.user_info, self)
-        self.insert_classroom_page = StudentListPage(self.user_info, self)
-        self.student_list_page = self.create_placeholder_page("👨‍🎓 Öğrenci listesi yakında aktif.")
+        self.student_list_page = StudentListPage(self.user_info, self)
+        self.insert_classroom_page = self.create_placeholder_page("👨‍🎓 Öğrenci listesi yakında aktif.")
         self.class_list_page = self.create_placeholder_page("📖 Ders listesi yakında aktif.")
 
         self.stack.addWidget(self.general_page)
