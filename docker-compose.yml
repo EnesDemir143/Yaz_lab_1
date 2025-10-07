@@ -8,7 +8,10 @@ services:
       - db
     volumes:
       - .:/app
+    env_file:
+      - .env
     command: uvicorn Backend.src.services.app:app --host 0.0.0.0 --port 8000 --reload
+
 
   db:
     image: mysql:8.0
@@ -20,7 +23,9 @@ services:
     ports:
       - "3306:3306"
     volumes:
+    - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     - mysql_data:/var/lib/mysql
+
 
 volumes:
   mysql_data:

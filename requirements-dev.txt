@@ -10,3 +10,5 @@ pandas
 openpyxl
 requests
 argon2-cffi
+python-multipart
+cryptography
