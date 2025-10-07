@@ -11,6 +11,7 @@ from Backend.src.DataBase.scripts.class_list_save_from_excel import class_list_s
 from Backend.src.DataBase.scripts.student_list_save_from_excel import student_list_save_from_excel
 from Backend.src.DataBase.src.utils.insert_coordinator import insert_department_coordinator
 from Backend.src.DataBase.src.utils.search_classroom import search_classroom as db_search_classroom
+from Backend.src.DataBase.src.utils.delete_classroom import delete_classroom as db_delete_classroom
 import io
 
 
@@ -133,3 +134,12 @@ def update_classroom(new_classroom_data: Classroom, user: User = Depends(require
         return {"message": "Error while updating classroom.", 'status': status, 'detail': msg}
     
     return {"message": "Classroom updated successfully.", 'status': status, 'detail': msg}
+
+@router.post("/delete_classroom")
+def delete_classroom(classroom_code: str, user: User = Depends(require_admin)):
+    status, msg = db_delete_classroom(classroom_code)
+    
+    if status == 'error' and status != 'success':
+        return {"message": "Error while deleting classroom.", 'status': status, 'detail': msg}
+    
+    return {"message": "Classroom deleted successfully.", 'status': status, 'detail': msg}
