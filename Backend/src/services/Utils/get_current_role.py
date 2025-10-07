@@ -4,7 +4,7 @@ from Backend.src.DataBase.src.utils.hash_password import HashPassword
 
 def get_current_role(user: User, hasher=HashPassword()) -> str:
     if user.email == 'admin' and user.password == 'admin' and user.department == 'admin':
-        return 'admin'
+        return 'admin', 'admin'
     else:
         with get_database() as db:
             with db.cursor() as cursor:

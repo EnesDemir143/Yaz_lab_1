@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
 from Frontend.src.Styles.load_qss import load_stylesheet
+from Frontend.src.Coordinator.UploadPages.Upload_class import UploadClassList
 
 class CoordinatorDashboard(QWidget):
     def __init__(self, controller, user_info=None):
@@ -74,7 +75,7 @@ class CoordinatorDashboard(QWidget):
         g_layout.addWidget(self.text_output)
         self.general_page.setLayout(g_layout)
 
-        self.upload_classes_page = self.create_placeholder_page("📁 Ders listesi yükleme alanı yakında aktif.")
+        self.upload_classes_page = UploadClassList(self.user_info, self)
         self.upload_students_page = self.create_placeholder_page("📚 Öğrenci listesi yükleme alanı yakında aktif.")
         self.insert_classroom_page = self.create_placeholder_page("🏫 Sınıf ekleme alanı yakında aktif.")
         self.student_list_page = self.create_placeholder_page("👨‍🎓 Öğrenci listesi yakında aktif.")
@@ -109,17 +110,18 @@ class CoordinatorDashboard(QWidget):
         return w
 
     def switch_page(self, index):
-        titles = [
-            "Genel",
-            "Ders Listesi Yükle",
-            "Öğrenci Listesi Yükle",
-            "Sınıf Ekle",
-            "Öğrenci Listesi",
-            "Ders Listesi",
-        ]
+        mapping = {
+            0: ("general", "Genel"),
+            1: ("upload_classes_list", "Ders Listesi Yükle"),
+            2: ("upload_students_list", "Öğrenci Listesi Yükle"),
+            3: ("insert_classroom", "Sınıf Ekle"),
+            4: ("student_list", "Öğrenci Listesi"),
+            5: ("class_list", "Ders Listesi"),
+        }
 
-        if 0 <= index < len(titles):
-            self.title_label.setText(titles[index])
+        if index in mapping:
+            self.current_endpoint, title = mapping[index]
+            self.title_label.setText(title)
             self.stack.setCurrentIndex(index)
 
     def logout(self):
