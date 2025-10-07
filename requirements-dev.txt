@@ -12,4 +12,4 @@ requests
 argon2-cffi
 python-multipart
 cryptography
-jose
+python-jose[cryptography]

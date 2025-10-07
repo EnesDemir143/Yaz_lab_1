@@ -25,6 +25,7 @@ class UploadWorker(QThread):
 
     def run(self):
         try:
+            headers = {"Authorization": f"Bearer {self.userinfo['token']}"}
             with open(self.file_path, "rb") as f:
                 files = {
                     "file": (
@@ -38,7 +39,7 @@ class UploadWorker(QThread):
                     f"{API_BASE}/upload_classes_list",
                     files=files,
                     data=data,
-                    headers=self.headers,
+                    headers=headers, 
                     timeout=30
                 )
             try:

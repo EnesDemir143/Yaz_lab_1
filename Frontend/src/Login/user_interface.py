@@ -159,23 +159,33 @@ class LoginWindow(QWidget):
     def on_login_result(self, result):
         if "error" in result:
             self.status_label.setText("❌ " + result["error"])
-        else:
-            role = result.get("role")
-            self.status_label.setStyleSheet("color: #4CAF50;")
-            if role == "admin":
-                self.status_label.setText("✅ Admin girişi başarılı!")
-                self.dashboard = AdminDashboard({
-                    "email": result.get("email"),
-                    "password": self.password_input.text().strip(),
-                    "department": result.get("department")
-                })
-                self.dashboard.show()
-                self.close()
-            elif role == "coordinator":
-                self.status_label.setText("✅ Koordinatör girişi başarılı!")
-            else:
-                self.status_label.setText("✅ Giriş başarılı!")
+            return
 
+        token = result.get("token")
+        role = result.get("role")
+
+        if not token:
+            self.status_label.setText("⚠️ Sunucudan token alınamadı.")
+            return
+
+        self.status_label.setStyleSheet("color: #4CAF50;")
+
+        self.userinfo = {
+            "email": result.get("email"),
+            "department": result.get("department"),
+            "role": role,
+            "token": token
+        }
+
+        if role == "admin":
+            self.status_label.setText("✅ Admin girişi başarılı!")
+            self.dashboard = AdminDashboard(user_info=self.userinfo)
+            self.dashboard.show()
+            self.close()
+        elif role == "coordinator":
+            self.status_label.setText("✅ Koordinatör girişi başarılı!")
+        else:
+            self.status_label.setText("✅ Giriş başarılı!")
 
 # ---- Main ----
 if __name__ == "__main__":
