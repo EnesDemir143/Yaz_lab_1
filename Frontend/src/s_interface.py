@@ -9,34 +9,57 @@ from Backend.src.utils.exams.algoritmalar import DersSecimi, SinavTarihleri, Sin
 
 
 # ---------- 1. DERS SEÇİMİ SAYFASI ----------
+import requests
+from PyQt5.QtWidgets import QWizardPage, QVBoxLayout, QLabel, QCheckBox
+from PyQt5.QtCore import Qt
+from Backend.src.utils.exams.algoritmalar import DersSecimi
+
+API_URL = "http://127.0.0.1:8000/class-list/get_courses"  # exam_class_list.py içindeki endpoint
+
 class DersSecimiPage(QWizardPage):
-    def __init__(self):
+    def __init__(self, department_id=None):
         super().__init__()
         self.setTitle("1. Ders Seçimi")
         self.layout = QVBoxLayout()
-
-        self.dersler = [
-            "Bilgisayar Mühendisliğine Giriş",
-            "Algoritmalar ve Programlama",
-            "Veri Yapıları",
-            "İşletim Sistemleri",
-            "Veri Tabanı Yönetimi"
-        ]
+        self.department_id = department_id
+        self.dersler = []
         self.checkboxes = []
 
         title_label = QLabel("Programa dahil olmayacak dersleri işaretleyiniz:")
         title_label.setObjectName("sectionTitle")
         self.layout.addWidget(title_label)
 
-        for ders in self.dersler:
-            cb = QCheckBox(ders)
-            cb.setCursor(Qt.PointingHandCursor)
-            self.layout.addWidget(cb)
-            self.checkboxes.append(cb)
+        # Dersleri API'den çekelim
+        self.load_courses_from_api()
 
         self.setLayout(self.layout)
 
+    def load_courses_from_api(self):
+        """API'den sadece kendi departmanına ait dersleri çeker."""
+        try:
+            params = {"department_id": self.department_id} if self.department_id else {}
+            response = requests.get(API_URL, params=params)
+
+            if response.status_code == 200:
+                data = response.json()
+                # API yanıt formatı örneği: {"courses": ["Veri Tabanı", "Yapay Zeka", ...]}
+                self.dersler = data.get("courses", [])
+            else:
+                self.dersler = ["Dersler yüklenemedi."]
+            
+            # Checkboxları oluştur
+            for ders in self.dersler:
+                cb = QCheckBox(ders)
+                cb.setCursor(Qt.PointingHandCursor)
+                self.layout.addWidget(cb)
+                self.checkboxes.append(cb)
+
+        except Exception as e:
+            error_label = QLabel(f"Dersler yüklenirken hata oluştu: {e}")
+            self.layout.addWidget(error_label)
+
     def get_kalan_dersler(self):
+        """İşaretlenmeyen dersleri döndürür."""
         cikarilacaklar = [cb.text() for cb in self.checkboxes if cb.isChecked()]
         secim = DersSecimi(self.dersler)
         return secim.filtrele(cikarilacaklar)
