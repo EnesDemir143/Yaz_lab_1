@@ -8,6 +8,8 @@ from Frontend.src.Styles.load_qss import load_stylesheet
 from Frontend.src.Coordinator.UploadPages.Upload_class import UploadClassList
 from Frontend.src.Coordinator.UploadPages.Upload_student import UploadStudentList
 from Frontend.src.Coordinator.StudentListPage.student_list_page import StudentListPage
+from Frontend.src.Coordinator.Classroom.clasroomPage import ClassroomPage
+
 
 class CoordinatorDashboard(QWidget):
     def __init__(self, controller, user_info=None):
@@ -80,7 +82,7 @@ class CoordinatorDashboard(QWidget):
         self.upload_classes_page = UploadClassList(self.user_info, self)
         self.upload_students_page = UploadStudentList(self.user_info, self)
         self.student_list_page = StudentListPage(self.user_info, self)
-        self.insert_classroom_page = self.create_placeholder_page("👨‍🎓 Öğrenci listesi yakında aktif.")
+        self.insert_classroom_page = ClassroomPage(self.stack, self.user_info)
         self.class_list_page = self.create_placeholder_page("📖 Ders listesi yakında aktif.")
 
         self.stack.addWidget(self.general_page)
