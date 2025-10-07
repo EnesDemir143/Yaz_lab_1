@@ -78,7 +78,7 @@ class InsertClassroomPage(QWidget):
             "department_name": self.department.text(),
             "capacity": int(self.capacity.text()) if self.capacity.text().isdigit() else 0,
             "desks_per_row": int(self.desks_row.text()) if self.desks_row.text().isdigit() else 0,
-            "desk_per_column": int(self.desks_col.text()) if self.desks_col.text().isdigit() else 0,
+            "desks_per_column": int(self.desks_col.text()) if self.desks_col.text().isdigit() else 0,
             "desk_structure": self.structure.text()
         }
 

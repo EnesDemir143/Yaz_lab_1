@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS student_classes (
 
 CREATE TABLE IF NOT EXISTS classrooms (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    classroom_code VARCHAR(50) UNIQUE NOT NULL,
+    classroom_id VARCHAR(50) UNIQUE NOT NULL,
     classroom_name VARCHAR(255) NOT NULL,
     department_name VARCHAR(100) NOT NULL,
     capacity INT NOT NULL,
