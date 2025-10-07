@@ -12,6 +12,7 @@ from Backend.src.DataBase.scripts.student_list_save_from_excel import student_li
 from Backend.src.DataBase.src.utils.insert_coordinator import insert_department_coordinator
 from Backend.src.DataBase.src.utils.search_classroom import search_classroom as db_search_classroom
 from Backend.src.DataBase.src.utils.delete_classroom import delete_classroom as db_delete_classroom
+from Backend.src.DataBase.src.utils.get_departments import get_departments as db_get_departments
 import io
 
 
@@ -83,7 +84,7 @@ def student_list_filter(student_num: str = Form(...), user: User = Depends(requi
     return {'name': name, 'surname': surname, 'classes': classes, "message": "Records fetched successfully.", 'status': 'success'}
 
 @router.post("/all_classes")
-def all_classes(department: str, user: User = Depends(require_admin)):
+def all_classes(department: str = Form(...), user: User = Depends(require_admin)):
     class_dict = {}
     
     try:
@@ -143,3 +144,13 @@ def delete_classroom(classroom_code: str, user: User = Depends(require_admin)):
         return {"message": "Error while deleting classroom.", 'status': status, 'detail': msg}
     
     return {"message": "Classroom deleted successfully.", 'status': status, 'detail': msg}
+
+@router.get("/get_departments")
+def get_departments(user: User = Depends(require_admin)):
+    db_get_departments()
+    departments, status, msg = db_get_departments()
+    
+    if status == 'error' and status != 'success':
+        return {"message": "Error while fetching departments.", 'status': status, 'detail': msg}
+    
+    return {"departments": departments, "message": "Departments fetched successfully.", 'status': status, 'detail': msg}
