@@ -8,15 +8,12 @@ from PyQt5.QtGui import QFont
 from Frontend.src.Admin.UploadPages.upload_class import UploadClassList
 from Frontend.src.Admin.UploadPages.upload_student import uploadStudentList
 from Frontend.src.Admin.InsertCoordinator.insert_coordinator import InsertCoordinator
-
-def load_stylesheet(path: str) -> str:
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
+from Frontend.src.Styles.load_qss import load_stylesheet
 
 class AdminDashboard(QWidget):
-    def __init__(self, user_info=None):
+    def __init__(self, parent, user_info=None):
         super().__init__()
+        self.parent = parent
         self.user_info = user_info
         self.file_path = None
         self.init_ui()
@@ -24,7 +21,7 @@ class AdminDashboard(QWidget):
     def init_ui(self):
         self.setWindowTitle("Admin Dashboard | Yönetim Paneli")
         self.resize(1200, 750)
-        self.setStyleSheet(load_stylesheet("Frontend/src/Admin/Styles/styles.qss"))
+        self.setStyleSheet(load_stylesheet("Frontend/src/Styles/admin_dashboard_styles.qss"))
 
         main_layout = QHBoxLayout(self)
         sidebar = QVBoxLayout()
@@ -119,3 +116,9 @@ class AdminDashboard(QWidget):
             self.current_endpoint, title = mapping[index]
             self.title_label.setText(title)
             self.stack.setCurrentIndex(index)
+
+    def closeEvent(self, event):
+        if self.parent:
+            self.parent.show()
+            self.parent.status_label.setText("")
+        event.accept()
