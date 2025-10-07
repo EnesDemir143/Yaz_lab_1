@@ -79,7 +79,7 @@ def student_list_filter(student_num: str = Form(...), user: User = Depends(requi
             name = record.get('name')
         if surname is None:
             surname = record.get('surname')
-        classes.append((record.get('class_name'), record.get('class_code')))
+        classes.append((record.get('class_name'), record.get('class_id')))
         
     return {'name': name, 'surname': surname, 'classes': classes, "message": "Records fetched successfully.", 'status': 'success'}
 
