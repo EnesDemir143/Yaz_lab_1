@@ -111,6 +111,7 @@ class LoginWindow(QWidget):
         self.password_input.setPlaceholderText("Şifre")
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setFont(font)
+        self.password_input.returnPressed.connect(self.handle_login)
 
         # Giriş butonu
         self.login_button = QPushButton("Giriş Yap")
