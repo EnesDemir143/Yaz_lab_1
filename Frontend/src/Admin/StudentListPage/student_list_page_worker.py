@@ -3,7 +3,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 API_BASE = "http://127.0.0.1:8000/admin"
 
-class ClassroomRequests(QThread):
+class Student_list_search_worker(QThread):
     finished = pyqtSignal(dict)
 
     def __init__(self, endpoint: str, data: dict, userinfo: dict):
@@ -16,13 +16,7 @@ class ClassroomRequests(QThread):
         try:
             headers = {"Authorization": f"Bearer {self.userinfo['token']}"}
             url = f"{API_BASE}/{self.endpoint}"
-
-            if self.endpoint in ["insert_classroom", "update_classroom"]:
-                resp = requests.post(url, json=self.data, headers=headers, timeout=30)
-            elif self.endpoint in ["search_classroom", "delete_classroom"]:
-                resp = requests.post(url, params=self.data, headers=headers, timeout=30)
-            else:
-                resp = requests.get(url, headers=headers, timeout=30)
+            resp = requests.get(url, headers=headers, data=self.data, timeout=30)
 
             try:
                 result = resp.json()

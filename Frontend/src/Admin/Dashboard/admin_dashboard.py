@@ -1,4 +1,3 @@
-# Frontend/src/Admin/admin_dashboard.py
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget,
     QListWidgetItem, QTextEdit, QStackedLayout
