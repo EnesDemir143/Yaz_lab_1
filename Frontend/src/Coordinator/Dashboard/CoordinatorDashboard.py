@@ -10,6 +10,7 @@ from Frontend.src.Coordinator.UploadPages.Upload_student import UploadStudentLis
 from Frontend.src.Coordinator.StudentListPage.student_list_page import StudentListPage
 from Frontend.src.Coordinator.Classroom.clasroomPage import ClassroomPage
 from Frontend.src.Coordinator.ClassList.class_list_page import ClassListPage
+from Frontend.src.Coordinator.Classroom.insert_classroom_page import InsertClassroomPage
 
 class CoordinatorDashboard(QWidget):
     def __init__(self, controller, user_info=None):
@@ -40,7 +41,7 @@ class CoordinatorDashboard(QWidget):
         # Menü sırası değiştirildi - "Sınıf Ekle" Genel'in hemen altında
         for item_text in [
             "🏠 Genel",
-            "🏫 Sınıf Ekle",
+            "🏫 Sınıf Yönetimi",
             "📁 Ders Listesi Yükle",
             "📚 Öğrenci Listesi Yükle",
             "👨‍🎓 Öğrenci Listesi",
@@ -83,8 +84,9 @@ class CoordinatorDashboard(QWidget):
         g_layout.addWidget(self.text_output)
         self.general_page.setLayout(g_layout)
         
-        # Stack sırası menü sırasına göre güncellendi
-        self.insert_classroom_page = ClassroomPage(self.stack, self.user_info)
+        # InsertClassroomPage'e dashboard referansını geç
+        self.insert_classroom_page = InsertClassroomPage(self.stack, self.user_info, self)
+        self.classroom_management_system = ClassroomPage(self.stack, self.user_info)
         self.upload_classes_page = UploadClassList(self.user_info, self)
         self.upload_students_page = UploadStudentList(self.user_info, self)
         self.student_list_page = StudentListPage(self.user_info, self)
@@ -92,10 +94,11 @@ class CoordinatorDashboard(QWidget):
         
         self.stack.addWidget(self.general_page)  # 0
         self.stack.addWidget(self.insert_classroom_page)  # 1
-        self.stack.addWidget(self.upload_classes_page)  # 2
-        self.stack.addWidget(self.upload_students_page)  # 3
-        self.stack.addWidget(self.student_list_page)  # 4
-        self.stack.addWidget(self.class_list_page)  # 5
+        self.stack.addWidget(self.classroom_management_system)  # 2
+        self.stack.addWidget(self.upload_classes_page)  # 3
+        self.stack.addWidget(self.upload_students_page)  # 4
+        self.stack.addWidget(self.student_list_page)  # 5
+        self.stack.addWidget(self.class_list_page)  # 6
         
         content_layout.addWidget(self.title_label)
         content_layout.addWidget(self.info_label)
@@ -106,7 +109,7 @@ class CoordinatorDashboard(QWidget):
         main_layout.addLayout(sidebar, 1)
         main_layout.addLayout(content_layout, 3)
         
-        # Başlangıçta "Sınıf Ekle" sayfasını göster (index 1)
+        # Başlangıçta InsertClassroomPage göster
         self.menu.setCurrentRow(1)
         self.disable_other_menu_items()
     
@@ -114,18 +117,27 @@ class CoordinatorDashboard(QWidget):
         """Sınıf Ekle dışındaki tüm menü öğelerini devre dışı bırak"""
         if not self.classroom_completed:
             for i in range(self.menu.count()):
-                if i != 1:  # 1 = Sınıf Ekle index'i
+                if i != 1:  # 1 = Sınıf Yönetimi index'i
                     item = self.menu.item(i)
                     item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
                     item.setForeground(Qt.gray)
     
     def enable_all_menu_items(self):
-        """Tüm menü öğelerini aktif et"""
+        """Tüm menü öğelerini aktif et ve Ders Listesi Yükle sayfasına git"""
         self.classroom_completed = True
         for i in range(self.menu.count()):
             item = self.menu.item(i)
             item.setFlags(item.flags() | Qt.ItemIsEnabled)
-            item.setForeground(Qt.white)  # Veya varsayılan renginiz
+            item.setForeground(Qt.white)
+        
+        # Otomatik olarak Ders Listesi Yükle sayfasına geç
+        self.menu.setCurrentRow(2)  # 2 = Ders Listesi Yükle
+    
+    def on_first_classroom_added(self):
+        """İlk derslik eklendiğinde classroom management'e geç"""
+        # Stack'te ClassroomPage'e geç (index 2)
+        self.stack.setCurrentIndex(2)
+        self.title_label.setText("Sınıf Yönetimi")
     
     def create_placeholder_page(self, message):
         w = QWidget()
@@ -138,15 +150,15 @@ class CoordinatorDashboard(QWidget):
         return w
     
     def switch_page(self, index):
-        # Sınıf ekleme tamamlanmadıysa ve Sınıf Ekle dışında bir sayfa seçildiyse, engelle
+        # Sınıf ekleme tamamlanmadıysa ve Sınıf Yönetimi dışında bir sayfa seçildiyse, engelle
         if not self.classroom_completed and index != 1:
-            self.menu.setCurrentRow(1)  # Tekrar Sınıf Ekle'ye dön
+            self.menu.setCurrentRow(1)  # Tekrar Sınıf Yönetimi'ne dön
             return
         
-        # Güncellenmiş mapping - sıra değişti
+        # Güncellenmiş mapping
         mapping = {
             0: ("general", "Genel"),
-            1: ("insert_classroom", "Sınıf Ekle"),
+            1: ("classroom_management", "Sınıf Yönetimi"),
             2: ("upload_classes_list", "Ders Listesi Yükle"),
             3: ("upload_students_list", "Öğrenci Listesi Yükle"),
             4: ("student_list", "Öğrenci Listesi"),
@@ -156,7 +168,15 @@ class CoordinatorDashboard(QWidget):
         if index in mapping:
             self.current_endpoint, title = mapping[index]
             self.title_label.setText(title)
-            self.stack.setCurrentIndex(index)
+            
+            # Index ayarlaması - InsertClassroomPage hala index 1'de
+            if index == 1 and not self.classroom_completed:
+                self.stack.setCurrentIndex(1)  # InsertClassroomPage
+            elif index == 1 and self.classroom_completed:
+                self.stack.setCurrentIndex(2)  # ClassroomPage
+            else:
+                # Diğer sayfalar için index'i 1 artır (çünkü InsertClassroom eklenmiş)
+                self.stack.setCurrentIndex(index + 1)
     
     def logout(self):
         self.controller.logout()
