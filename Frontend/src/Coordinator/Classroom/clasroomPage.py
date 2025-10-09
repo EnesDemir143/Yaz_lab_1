@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton, QLabel
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 from Frontend.src.Styles.load_qss import load_stylesheet
 from Frontend.src.Coordinator.Classroom.insert_classroom_page import InsertClassroomPage
@@ -10,6 +10,8 @@ from Frontend.src.Coordinator.Classroom.delete_classroom_page import DeleteClass
 
 
 class ClassroomPage(QWidget):
+    done = pyqtSignal()
+    
     def __init__(self, parent_stack, user_info):
 
         super().__init__()
@@ -53,3 +55,6 @@ class ClassroomPage(QWidget):
 
         self.parent_stack.addWidget(page)
         self.parent_stack.setCurrentWidget(page)
+
+    def handle_done(self):
+        self.done.emit() 

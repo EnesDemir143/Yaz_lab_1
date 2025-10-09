@@ -1,17 +1,21 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QTextEdit, QMessageBox, QHBoxLayout
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 from Frontend.src.Coordinator.Classroom.classroomReqs import ClassroomRequests
 from Frontend.src.Styles.load_qss import load_stylesheet
 
 
 class InsertClassroomPage(QWidget):
-    def __init__(self, parent_stack, user_info):
+    inserted_classroom_count = 0
+    done = pyqtSignal()
+    
+    def __init__(self, parent_stack, user_info, setup_mode=True):
         super().__init__()
         self.user_info = user_info
         self.parent_stack = parent_stack
+        self.setup_mode = setup_mode
         self.init_ui()
 
     def init_ui(self):
@@ -50,8 +54,9 @@ class InsertClassroomPage(QWidget):
         # Butonlar
         btn_layout = QHBoxLayout()
         self.insert_btn = QPushButton("Kaydet")
-        self.back_btn = QPushButton("⬅️ Geri Dön")
-        btn_layout.addWidget(self.back_btn)
+        if not  self.setup_mode and self.inserted_classroom_count == 0:
+            self.back_btn = QPushButton("⬅️ Geri Dön")
+            btn_layout.addWidget(self.back_btn)
         btn_layout.addWidget(self.insert_btn)
         layout.addLayout(btn_layout)
 
@@ -62,7 +67,9 @@ class InsertClassroomPage(QWidget):
         self.setLayout(layout)
 
         self.insert_btn.clicked.connect(self.insert_classroom)
-        self.back_btn.clicked.connect(self.go_back)
+        
+        if not self.setup_mode and self.inserted_classroom_count == 0:
+            self.back_btn.clicked.connect(self.go_back)
 
     def go_back(self):
         # ClassroomPage’e dön
@@ -91,4 +98,8 @@ class InsertClassroomPage(QWidget):
         if response.get("status") == "error":
             QMessageBox.critical(self, "Insert Failed", response.get("detail", "Unknown error"))
         else:
+            self.inserted_classroom_count += 1
             QMessageBox.information(self, "Success", "Classroom inserted successfully!")
+            
+    def handle_done(self):
+        self.done.emit()

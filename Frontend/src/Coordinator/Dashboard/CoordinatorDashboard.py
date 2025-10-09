@@ -9,12 +9,14 @@ from Frontend.src.Coordinator.UploadPages.Upload_class import UploadClassList
 from Frontend.src.Coordinator.UploadPages.Upload_student import UploadStudentList
 from Frontend.src.Coordinator.StudentListPage.student_list_page import StudentListPage
 from Frontend.src.Coordinator.Classroom.clasroomPage import ClassroomPage
+from Frontend.src.Coordinator.Classroom.insert_classroom_page import InsertClassroomPage
 from Frontend.src.Coordinator.ClassList.class_list_page import ClassListPage
 
 
 class CoordinatorDashboard(QWidget):
     def __init__(self, controller, user_info=None):
         super().__init__()
+        self.setup_mode = True 
         self.controller = controller
         self.user_info = user_info or {}
         self.file_path = None
@@ -79,11 +81,13 @@ class CoordinatorDashboard(QWidget):
         self.text_output.append("🟢 Koordinatör paneline hoş geldiniz.\n")
         g_layout.addWidget(self.text_output)
         self.general_page.setLayout(g_layout)
+        
+        self.insert_classroom_page = ClassroomPage(self.stack, self.user_info)
+        self.insert_classroom_page.done.connect(self.on_classroom_done)
 
         self.upload_classes_page = UploadClassList(self.user_info, self)
         self.upload_students_page = UploadStudentList(self.user_info, self)
         self.student_list_page = StudentListPage(self.user_info, self)
-        self.insert_classroom_page = ClassroomPage(self.stack, self.user_info)
         self.class_list_page = ClassListPage(self.user_info, self)
 
         self.stack.addWidget(self.general_page)
@@ -104,6 +108,22 @@ class CoordinatorDashboard(QWidget):
 
         self.menu.setCurrentRow(0)
 
+        if self.setup_mode:
+            self.hide_dashboard_ui()
+            self.start_setup_only()
+        else:
+            self.menu.setCurrentRow(0)
+            
+    def hide_dashboard_ui(self):
+        for widget in [self.menu, self.title_label, self.info_label]:
+            widget.hide()
+
+        old_layout = self.layout()
+        if old_layout:
+            self.clear_layout(old_layout)
+
+
+
     def create_placeholder_page(self, message):
         w = QWidget()
         l = QVBoxLayout()
@@ -113,6 +133,12 @@ class CoordinatorDashboard(QWidget):
         l.addWidget(label)
         w.setLayout(l)
         return w
+    
+    def on_classroom_done(self):
+        self.stack.setCurrentWidget(self.general_page)
+        self.title_label.setText("Genel")
+        self.menu.setCurrentRow(0)
+
 
     def switch_page(self, index):
         mapping = {
@@ -128,6 +154,40 @@ class CoordinatorDashboard(QWidget):
             self.current_endpoint, title = mapping[index]
             self.title_label.setText(title)
             self.stack.setCurrentIndex(index)
+                
+    def start_setup_only(self):
+        old_layout = self.layout()
+        if old_layout is not None:
+            self.clear_layout(old_layout)
 
+        self.hide()
+
+        self.insert_classroom_page = InsertClassroomPage(self, self.user_info)
+        self.insert_classroom_page.done.connect(self.goto_classroom_management)
+        
+        self.insert_classroom_page.showFullScreen()
+
+    def clear_layout(self, layout):
+        if layout is not None:
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+                elif item.layout() is not None:
+                    self.clear_layout(item.layout())
+
+        
+    def goto_classroom_management(self):
+        self.insert_classroom_page.close()
+        self.classroom_management_page = ClassroomPage(self.stack, self.user_info)
+        self.classroom_management_page.done.connect(self.finish_setup)
+        self.classroom_management_page.showFullScreen()
+        
+    def finish_setup(self):
+        self.setup_mode = False
+        self.clear_layout(self.layout()) 
+        self.init_ui()
+    
     def logout(self):
         self.controller.logout()
