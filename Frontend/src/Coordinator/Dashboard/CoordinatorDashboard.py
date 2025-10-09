@@ -164,10 +164,17 @@ class CoordinatorDashboard(QWidget):
             self.classroom_management_page.close()
             
         self.upload_classes_list =  UploadClassList(self.user_info, None, setup_mode=True)
-        self.upload_classes_list.done.connect(self.finish_setup)
+        self.upload_classes_list.done.connect(self.goto_upload_students_list)
         self.upload_classes_list.showFullScreen()
         
-    
+    def goto_upload_students_list(self):
+        if hasattr(self, "upload_classes_list"):
+            self.upload_classes_list.close()
+        
+        self.upload_students_list = UploadStudentList(self.user_info, None, setup_mode=True)
+        self.upload_students_list.done.connect(self.finish_setup)
+        self.upload_students_list.showFullScreen()
+        
     def finish_setup(self):
         if hasattr(self, "classroom_management_page"):
             self.classroom_management_page.close()
