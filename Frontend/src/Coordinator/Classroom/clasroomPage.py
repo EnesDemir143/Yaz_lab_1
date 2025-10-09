@@ -10,11 +10,11 @@ from Frontend.src.Coordinator.Classroom.delete_classroom_page import DeleteClass
 
 
 class ClassroomPage(QWidget):
-    def __init__(self, parent_stack, user_info):
-
+    def __init__(self, parent_stack, user_info, dashboard=None):
         super().__init__()
         self.user_info = user_info
         self.parent_stack = parent_stack
+        self.dashboard = dashboard  # Reference to CoordinatorDashboard
         self.init_ui()
 
     def init_ui(self):
@@ -32,6 +32,10 @@ class ClassroomPage(QWidget):
         self.insert_btn = QPushButton("➕ Insert Classroom")
         self.search_btn = QPushButton("🔍 Search Classroom")
         self.delete_btn = QPushButton("🗑️ Delete Classroom")
+        
+        self.okey_btn = QPushButton("✔️ Confirm Classroom Addition")
+        layout.addWidget(self.okey_btn)
+        self.okey_btn.setVisible(True)  
 
         for btn in [self.insert_btn, self.search_btn, self.delete_btn]:
             btn.setMinimumHeight(50)
@@ -42,10 +46,12 @@ class ClassroomPage(QWidget):
         self.insert_btn.clicked.connect(lambda: self.open_page("insert"))
         self.search_btn.clicked.connect(lambda: self.open_page("search"))
         self.delete_btn.clicked.connect(lambda: self.open_page("delete"))
+        self.okey_btn.clicked.connect(self.next_step_after_insertion)
+        
 
     def open_page(self, action_type: str):
         if action_type == "insert":
-            page = InsertClassroomPage(self.parent_stack, self.user_info)
+            page = InsertClassroomPage(self.parent_stack, self.user_info, self.dashboard)
         elif action_type == "search":
             page = SearchClassroomPage(self.parent_stack, self.user_info)
         else:
@@ -53,3 +59,8 @@ class ClassroomPage(QWidget):
 
         self.parent_stack.addWidget(page)
         self.parent_stack.setCurrentWidget(page)
+
+    def next_step_after_insertion(self):
+        if self.dashboard:
+            self.dashboard.enable_next_step_after_classroom()  
+            self.okey_btn.setVisible(False) 

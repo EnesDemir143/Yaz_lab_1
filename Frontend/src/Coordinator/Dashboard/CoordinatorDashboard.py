@@ -84,9 +84,9 @@ class CoordinatorDashboard(QWidget):
         g_layout.addWidget(self.text_output)
         self.general_page.setLayout(g_layout)
         
-        # InsertClassroomPage'e dashboard referansını geç
+        # Pass dashboard reference to InsertClassroomPage and ClassroomPage
         self.insert_classroom_page = InsertClassroomPage(self.stack, self.user_info, self)
-        self.classroom_management_system = ClassroomPage(self.stack, self.user_info)
+        self.classroom_management_system = ClassroomPage(self.stack, self.user_info, self)
         self.upload_classes_page = UploadClassList(self.user_info, self)
         self.upload_students_page = UploadStudentList(self.user_info, self)
         self.student_list_page = StudentListPage(self.user_info, self)
@@ -122,16 +122,33 @@ class CoordinatorDashboard(QWidget):
                     item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
                     item.setForeground(Qt.gray)
     
-    def enable_all_menu_items(self):
-        """Tüm menü öğelerini aktif et ve Ders Listesi Yükle sayfasına git"""
+    def enable_next_step_after_classroom(self):
         self.classroom_completed = True
+
         for i in range(self.menu.count()):
             item = self.menu.item(i)
-            item.setFlags(item.flags() | Qt.ItemIsEnabled)
-            item.setForeground(Qt.white)
-        
-        # Otomatik olarak Ders Listesi Yükle sayfasına geç
-        self.menu.setCurrentRow(2)  # 2 = Ders Listesi Yükle
+            if i in (1, 2):
+                item.setFlags(item.flags() | Qt.ItemIsEnabled)
+                item.setForeground(Qt.white)
+            else:
+                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+                item.setForeground(Qt.gray)
+
+        self.menu.setCurrentRow(2)
+        self.switch_page(2)
+
+
+    def enable_next_step_after_class_upload(self):
+        for i in range(self.menu.count()):
+            item = self.menu.item(i)
+            if i in (1, 2, 3): 
+                item.setFlags(item.flags() | Qt.ItemIsEnabled)
+                item.setForeground(Qt.white)
+            else:
+                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+                item.setForeground(Qt.gray)
+        self.menu.setCurrentRow(3)
+        self.switch_page(3)
     
     def on_first_classroom_added(self):
         """İlk derslik eklendiğinde classroom management'e geç"""
