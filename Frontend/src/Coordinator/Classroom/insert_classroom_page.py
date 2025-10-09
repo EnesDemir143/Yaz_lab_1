@@ -111,6 +111,7 @@ class InsertClassroomPage(QWidget):
             
             if self.setup_mode:
                 self.handle_done()
+                InsertClassroomPage.done
             
     def handle_done(self):
         self.done.emit()

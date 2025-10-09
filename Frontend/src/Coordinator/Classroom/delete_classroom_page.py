@@ -1,17 +1,20 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QHBoxLayout
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 from Frontend.src.Coordinator.Classroom.classroomReqs import ClassroomRequests
 from Frontend.src.Styles.load_qss import load_stylesheet
 
 
 class DeleteClassroomPage(QWidget):
-    def __init__(self, parent_stack, user_info):
+    done = pyqtSignal()
+    
+    def __init__(self, parent_stack, user_info, setup_mode=False):
         super().__init__()
         self.user_info = user_info
         self.parent_stack = parent_stack
+        self.setup_mode = setup_mode
         self.init_ui()
 
     def init_ui(self):
@@ -43,9 +46,16 @@ class DeleteClassroomPage(QWidget):
 
     def go_back(self):
         from Frontend.src.Coordinator.Classroom.clasroomPage import ClassroomPage
-        classroom_page = ClassroomPage(self.parent_stack, self.user_info)
-        self.parent_stack.addWidget(classroom_page)
-        self.parent_stack.setCurrentWidget(classroom_page)
+
+        if self.parent_stack is None:
+            classroom_page = ClassroomPage(None, self.user_info, setup_mode=True)
+            classroom_page.done.connect(classroom_page.close)
+            classroom_page.showFullScreen()
+            self.close()
+        else:
+            classroom_page = ClassroomPage(self.parent_stack, self.user_info)
+            self.parent_stack.addWidget(classroom_page)
+            self.parent_stack.setCurrentWidget(classroom_page)
 
     def delete_classroom(self):
         code = self.classroom_code_input.text().strip()
@@ -69,3 +79,6 @@ class DeleteClassroomPage(QWidget):
         else:
             QMessageBox.information(self, "Deleted", "Classroom deleted successfully!")
             self.go_back()
+            
+            if self.setup_mode:
+                self.done.emit()
