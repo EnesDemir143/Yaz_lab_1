@@ -96,4 +96,4 @@ class UploadStudentList(QWidget):
             QMessageBox.information(self, "Başarılı", f"message: {msg}\n\n{detail}")
 
         if self.parent_dashboard:
-            self.parent_dashboard.menu.setCurrentRow(0)
+            self.parent_dashboard.enable_next_step_after_student_upload()

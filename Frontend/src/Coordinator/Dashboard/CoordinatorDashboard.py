@@ -37,19 +37,24 @@ class CoordinatorDashboard(QWidget):
         
         self.menu = QListWidget()
         self.menu.setObjectName("menuList")
-        
-        # Menü sırası değiştirildi - "Sınıf Ekle" Genel'in hemen altında
-        for item_text in [
+                
+        self.initial_menu_items = [
             "🏠 Genel",
             "🏫 Sınıf Yönetimi",
             "📁 Ders Listesi Yükle",
             "📚 Öğrenci Listesi Yükle",
+        ]
+
+        self.later_menu_items = [
             "👨‍🎓 Öğrenci Listesi",
             "📖 Ders Listesi",
-        ]:
+        ]
+
+        for item_text in self.initial_menu_items:
             item = QListWidgetItem(item_text)
             item.setSizeHint(QSize(180, 40))
             self.menu.addItem(item)
+
         
         self.menu.currentRowChanged.connect(self.switch_page)
         
@@ -114,7 +119,6 @@ class CoordinatorDashboard(QWidget):
         self.disable_other_menu_items()
     
     def disable_other_menu_items(self):
-        """Sınıf Ekle dışındaki tüm menü öğelerini devre dışı bırak"""
         if not self.classroom_completed:
             for i in range(self.menu.count()):
                 if i != 1:  # 1 = Sınıf Yönetimi index'i
@@ -150,9 +154,25 @@ class CoordinatorDashboard(QWidget):
         self.menu.setCurrentRow(3)
         self.switch_page(3)
     
+    def enable_next_step_after_student_upload(self):
+        existing_texts = [self.menu.item(i).text() for i in range(self.menu.count())]
+        for text in self.later_menu_items:
+            if text not in existing_texts:
+                item = QListWidgetItem(text)
+                item.setSizeHint(QSize(180, 40))
+                self.menu.addItem(item)
+
+        for i in range(self.menu.count()):
+            item = self.menu.item(i)
+            item.setFlags(item.flags() | Qt.ItemIsEnabled)
+            item.setForeground(Qt.white)
+
+        self.menu.setCurrentRow(4)
+        self.switch_page(4)
+        self.text_output.append("✅ Öğrenci yüklemesi tamamlandı, ek menüler eklendi ve tüm menüler aktif.\n")
+
+            
     def on_first_classroom_added(self):
-        """İlk derslik eklendiğinde classroom management'e geç"""
-        # Stack'te ClassroomPage'e geç (index 2)
         self.stack.setCurrentIndex(2)
         self.title_label.setText("Sınıf Yönetimi")
     
