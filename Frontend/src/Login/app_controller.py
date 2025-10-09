@@ -5,7 +5,7 @@ from Frontend.src.Coordinator.Dashboard.CoordinatorDashboard import CoordinatorD
 class AppController:
     def __init__(self):
         self.login_window = LoginWindow(controller=self)
-        self.login_window.show()
+        self.login_window.showFullScreen()
 
     def on_login_success(self, user_info):
         role = user_info.get("role")
@@ -19,9 +19,8 @@ class AppController:
         else:
             raise ValueError(f"Bilinmeyen rol: {role}")
 
-        self.dashboard.show()
 
     def logout(self):
         self.dashboard.close()
         self.login_window = LoginWindow(controller=self)
-        self.login_window.show()
+        self.login_window.showFullScreen()
