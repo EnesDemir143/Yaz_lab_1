@@ -1,20 +1,17 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QTextEdit, QMessageBox, QHBoxLayout, 
+    QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QTextEdit, QMessageBox, QHBoxLayout
 )
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from Frontend.src.Coordinator.Classroom.classroomReqs import ClassroomRequests
 from Frontend.src.Styles.load_qss import load_stylesheet
 
 
 class SearchClassroomPage(QWidget):
-    done = pyqtSignal()
-    
-    def __init__(self, parent_stack, user_info, setup_mode=False):
+    def __init__(self, parent_stack, user_info):
         super().__init__()
         self.user_info = user_info
         self.parent_stack = parent_stack
-        self.setup_mode = setup_mode
         self.init_ui()
 
     def init_ui(self):
@@ -49,17 +46,9 @@ class SearchClassroomPage(QWidget):
 
     def go_back(self):
         from Frontend.src.Coordinator.Classroom.clasroomPage import ClassroomPage
-
-        if self.parent_stack is None:
-            classroom_page = ClassroomPage(None, self.user_info, setup_mode=True)
-            classroom_page.done.connect(classroom_page.close)
-            classroom_page.showFullScreen()
-            self.close()
-        else:
-            classroom_page = ClassroomPage(self.parent_stack, self.user_info)
-            self.parent_stack.addWidget(classroom_page)
-            self.parent_stack.setCurrentWidget(classroom_page)
-
+        classroom_page = ClassroomPage(self.parent_stack, self.user_info)
+        self.parent_stack.addWidget(classroom_page)
+        self.parent_stack.setCurrentWidget(classroom_page)
 
     def search_classroom(self):
         code = self.classroom_code_input.text().strip()
@@ -85,6 +74,3 @@ class SearchClassroomPage(QWidget):
                 f"Masa Yapısı: {classroom.get('desk_structure', '')}"
             ])
             self.result.setText(info_text)
-            
-            if self.setup_mode:
-                self.done.emit()

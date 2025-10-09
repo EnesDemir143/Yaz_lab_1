@@ -1,25 +1,17 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QTextEdit, QMessageBox, QHBoxLayout, QDialog
+    QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QTextEdit, QMessageBox, QHBoxLayout
 )
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from Frontend.src.Coordinator.Classroom.classroomReqs import ClassroomRequests
 from Frontend.src.Styles.load_qss import load_stylesheet
 
 
 class InsertClassroomPage(QWidget):
-    inserted_classroom_count_with_users = {}
-    done = pyqtSignal()
-    
-    def __init__(self, parent_stack, user_info, setup_mode=True):
+    def __init__(self, parent_stack, user_info):
         super().__init__()
         self.user_info = user_info
         self.parent_stack = parent_stack
-        self.setup_mode = setup_mode
-        
-        if user_info.get("email") not in InsertClassroomPage.inserted_classroom_count_with_users:
-            InsertClassroomPage.inserted_classroom_count_with_users[user_info.get("email")] = 0
-        
         self.init_ui()
 
     def init_ui(self):
@@ -58,12 +50,8 @@ class InsertClassroomPage(QWidget):
         # Butonlar
         btn_layout = QHBoxLayout()
         self.insert_btn = QPushButton("Kaydet")
-        
-        if not self.setup_mode or InsertClassroomPage.inserted_classroom_count_with_users[self.user_info.get('email')] > 0:
-            self.back_btn = QPushButton("⬅️ Geri Dön")
-            btn_layout.addWidget(self.back_btn)
-            self.back_btn.clicked.connect(self.go_back)
-            
+        self.back_btn = QPushButton("⬅️ Geri Dön")
+        btn_layout.addWidget(self.back_btn)
         btn_layout.addWidget(self.insert_btn)
         layout.addLayout(btn_layout)
 
@@ -74,20 +62,14 @@ class InsertClassroomPage(QWidget):
         self.setLayout(layout)
 
         self.insert_btn.clicked.connect(self.insert_classroom)
+        self.back_btn.clicked.connect(self.go_back)
 
     def go_back(self):
+        # ClassroomPage’e dön
         from Frontend.src.Coordinator.Classroom.clasroomPage import ClassroomPage
-
-        if self.parent_stack is None:
-            classroom_page = ClassroomPage(None, self.user_info, setup_mode=True)
-            classroom_page.done.connect(classroom_page.close)
-            classroom_page.showFullScreen()
-            self.close()  
-        else:
-            classroom_page = ClassroomPage(self.parent_stack, self.user_info)
-            self.parent_stack.addWidget(classroom_page)
-            self.parent_stack.setCurrentWidget(classroom_page)
-
+        classroom_page = ClassroomPage(self.parent_stack, self.user_info)
+        self.parent_stack.addWidget(classroom_page)
+        self.parent_stack.setCurrentWidget(classroom_page)
 
     def insert_classroom(self):
         data = {
@@ -110,12 +92,3 @@ class InsertClassroomPage(QWidget):
             QMessageBox.critical(self, "Insert Failed", response.get("detail", "Unknown error"))
         else:
             QMessageBox.information(self, "Success", "Classroom inserted successfully!")
-            
-            InsertClassroomPage.inserted_classroom_count_with_users[self.user_info.get('email')] += 1
-            
-            if self.setup_mode:
-                self.handle_done()
-                InsertClassroomPage.done
-            
-    def handle_done(self):
-        self.done.emit()
