@@ -156,31 +156,34 @@ class CoordinatorDashboard(QWidget):
             self.insert_classroom_page_setup.close()
         
         self.classroom_management_page = ClassroomPage(None, self.user_info, setup_mode=True)
-        self.classroom_management_page.done.connect(self.finish_setup)
+        self.classroom_management_page.done.connect(self.goto_upload_classes_list)
         self.classroom_management_page.showFullScreen()
     
+    def goto_upload_classes_list(self):
+        if hasattr(self, "classroom_management_page"):
+            self.classroom_management_page.close()
+            
+        self.upload_classes_list =  UploadClassList(self.user_info, None, setup_mode=True)
+        self.upload_classes_list.done.connect(self.finish_setup)
+        self.upload_classes_list.showFullScreen()
+        
+    
     def finish_setup(self):
-        """Setup bitti, dashboard'u göster"""
         if hasattr(self, "classroom_management_page"):
             self.classroom_management_page.close()
         
-        # Setup mode'u kapat
         self.setup_mode = False
         
-        # Dashboard'u oluştur (henüz oluşturulmamışsa)
         if not self.dashboard_built:
             self.build_dashboard()
         
-        # CRITICAL: Layout'u yenile
         if self.layout():
             self.layout().update()
             self.layout().activate()
         
-        # Widget'ı yenile
         self.update()
         self.repaint()
         
-        # Pencereyi tam ekran olarak göster
         self.show()
         self.showFullScreen()
         self.raise_()
