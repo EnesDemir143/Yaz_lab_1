@@ -8,7 +8,7 @@ from Frontend.src.Styles.load_qss import load_stylesheet
 
 
 class InsertClassroomPage(QWidget):
-    inserted_classroom_count = 0  
+    inserted_classroom_count_with_users = {}
     done = pyqtSignal()
     
     def __init__(self, parent_stack, user_info, setup_mode=True):
@@ -16,6 +16,10 @@ class InsertClassroomPage(QWidget):
         self.user_info = user_info
         self.parent_stack = parent_stack
         self.setup_mode = setup_mode
+        
+        if user_info.get("email") not in InsertClassroomPage.inserted_classroom_count_with_users:
+            InsertClassroomPage.inserted_classroom_count_with_users[user_info.get("email")] = 0
+        
         self.init_ui()
 
     def init_ui(self):
@@ -55,7 +59,7 @@ class InsertClassroomPage(QWidget):
         btn_layout = QHBoxLayout()
         self.insert_btn = QPushButton("Kaydet")
         
-        if not self.setup_mode or InsertClassroomPage.inserted_classroom_count > 0:
+        if not self.setup_mode or InsertClassroomPage.inserted_classroom_count_with_users[self.user_info.get('email')] > 0:
             self.back_btn = QPushButton("⬅️ Geri Dön")
             btn_layout.addWidget(self.back_btn)
             self.back_btn.clicked.connect(self.go_back)
@@ -107,7 +111,7 @@ class InsertClassroomPage(QWidget):
         else:
             QMessageBox.information(self, "Success", "Classroom inserted successfully!")
             
-            InsertClassroomPage.inserted_classroom_count += 1
+            InsertClassroomPage.inserted_classroom_count_with_users[self.user_info.get('email')] += 1
             
             if self.setup_mode:
                 self.handle_done()
