@@ -158,11 +158,11 @@ class CoordinatorDashboard(QWidget):
     def start_setup_only(self):
         old_layout = self.layout()
         if old_layout is not None:
-            self.clear_layout(old_layout)
+            QWidget().setLayout(old_layout)
 
         self.hide()
 
-        self.insert_classroom_page = InsertClassroomPage(self, self.user_info)
+        self.insert_classroom_page = InsertClassroomPage(self, self.user_info, setup_mode=self.setup_mode)
         self.insert_classroom_page.done.connect(self.goto_classroom_management)
         
         self.insert_classroom_page.showFullScreen()
@@ -177,17 +177,24 @@ class CoordinatorDashboard(QWidget):
                 elif item.layout() is not None:
                     self.clear_layout(item.layout())
 
-        
     def goto_classroom_management(self):
-        self.insert_classroom_page.close()
-        self.classroom_management_page = ClassroomPage(self.stack, self.user_info)
+        self.hide()
+
+        if hasattr(self, "insert_classroom_page"):
+            self.insert_classroom_page.close()
+
+        self.classroom_management_page = ClassroomPage(None, self.user_info, setup_mode=True)
         self.classroom_management_page.done.connect(self.finish_setup)
         self.classroom_management_page.showFullScreen()
-        
+    
     def finish_setup(self):
+        if hasattr(self, "classroom_management_page"):
+            self.classroom_management_page.close()
+
+        self.showNormal()
+        self.show()
         self.setup_mode = False
-        self.clear_layout(self.layout()) 
-        self.init_ui()
+
     
     def logout(self):
         self.controller.logout()

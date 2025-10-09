@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QPushButton, QLabel
+    QWidget, QVBoxLayout, QPushButton, QLabel, QDialog
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
@@ -12,11 +12,12 @@ from Frontend.src.Coordinator.Classroom.delete_classroom_page import DeleteClass
 class ClassroomPage(QWidget):
     done = pyqtSignal()
     
-    def __init__(self, parent_stack, user_info):
+    def __init__(self, parent_stack, user_info, setup_mode=False):
 
         super().__init__()
         self.user_info = user_info
         self.parent_stack = parent_stack
+        self.setup_mode = setup_mode
         self.init_ui()
 
     def init_ui(self):
@@ -25,7 +26,11 @@ class ClassroomPage(QWidget):
 
         layout = QVBoxLayout()
         layout.setSpacing(20)
-
+    
+        if self.setup_mode:        
+            self.okey_btn = QPushButton("Okey")
+            layout.addWidget(self.okey_btn)    
+    
         title = QLabel("🏫 Classroom Management Panel")
         title.setFont(QFont("Arial", 18, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
@@ -38,6 +43,11 @@ class ClassroomPage(QWidget):
         for btn in [self.insert_btn, self.search_btn, self.delete_btn]:
             btn.setMinimumHeight(50)
             layout.addWidget(btn)
+        
+        if self.setup_mode:
+            self.okey_btn.setMinimumHeight(40)
+            layout.addWidget(self.okey_btn)
+            self.okey_btn.clicked.connect(self.handle_done)
 
         self.setLayout(layout)
 
@@ -47,14 +57,25 @@ class ClassroomPage(QWidget):
 
     def open_page(self, action_type: str):
         if action_type == "insert":
-            page = InsertClassroomPage(self.parent_stack, self.user_info)
+            self.page = InsertClassroomPage(self.parent_stack, self.user_info)
         elif action_type == "search":
-            page = SearchClassroomPage(self.parent_stack, self.user_info)
+            self.page = SearchClassroomPage(self.parent_stack, self.user_info)
         else:
-            page = DeleteClassroomPage(self.parent_stack, self.user_info)
+            self.page = DeleteClassroomPage(self.parent_stack, self.user_info)
 
-        self.parent_stack.addWidget(page)
-        self.parent_stack.setCurrentWidget(page)
+        self.page.done.connect(lambda: self.page.close())
+
+        if self.setup_mode:
+            self.page.showFullScreen()
+        else:
+            if self.parent_stack:
+                self.parent_stack.addWidget(self.page)
+                self.parent_stack.setCurrentWidget(self.page)
+
 
     def handle_done(self):
-        self.done.emit() 
+        if self.setup_mode:
+            self.done.emit() 
+            self.close()     
+        else:
+            self.done.emit()
