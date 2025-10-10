@@ -52,7 +52,6 @@ class InsertClassroomPage(QWidget):
         # Form alanları
         self.classroom_id = QLineEdit()
         self.classroom_name = QLineEdit()
-        self.department = QLineEdit()
         self.capacity = QLineEdit()
         self.desks_row = QLineEdit()
         self.desks_col = QLineEdit()
@@ -61,7 +60,6 @@ class InsertClassroomPage(QWidget):
         fields = [
             ("Derslik Kodu:", self.classroom_id),
             ("Derslik Adı:", self.classroom_name),
-            ("Bölüm Adı:", self.department),
             ("Kapasite:", self.capacity),
             ("Sıra Satır Sayısı:", self.desks_row),
             ("Sıra Sütun Sayısı:", self.desks_col),
@@ -109,7 +107,6 @@ class InsertClassroomPage(QWidget):
         if not all([
             self.classroom_id.text(),
             self.classroom_name.text(),
-            self.department.text(),
             self.capacity.text(),
             self.desks_row.text(),
             self.desks_col.text(),
@@ -130,7 +127,7 @@ class InsertClassroomPage(QWidget):
         data = {
             "classroom_id": self.classroom_id.text(),
             "classroom_name": self.classroom_name.text(),
-            "department_name": self.department.text(),
+            "department_name": self.user_info.get("department"),
             "capacity": capacity,
             "desks_per_row": desks_row,
             "desks_per_column": desks_col,
@@ -179,7 +176,6 @@ class InsertClassroomPage(QWidget):
     def clear_form(self):
         self.classroom_id.clear()
         self.classroom_name.clear()
-        self.department.clear()
         self.capacity.clear()
         self.desks_row.clear()
         self.desks_col.clear()

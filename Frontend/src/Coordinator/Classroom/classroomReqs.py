@@ -22,7 +22,7 @@ class ClassroomRequests(QThread):
             elif self.endpoint in ["search_classroom", "delete_classroom"]:
                 resp = requests.post(url, params=self.data, headers=headers, timeout=30)
             elif self.endpoint == "exam_classrooms":
-                resp = requests.get(url, headers=self.headers, timeout=30)
+                resp = requests.get(url, headers=headers, timeout=30)
             else:
                 print("Invalid endpoint")
                 raise ValueError("Invalid endpoint")

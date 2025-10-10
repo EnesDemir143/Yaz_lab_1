@@ -417,94 +417,104 @@ class ExamProgramPage(QWidget):
 
         self.content_layout.addStretch()
 
-    # -------------------------- TAMAMLAMA --------------------------
     def finish_program(self):
         try:
-            # Son adımdaki verileri kaydet
             self.save_current_step_data()
-            
+
             # ExamProgram objesi oluştur
             self.exam_program = ExamProgram()
-            
-            # Ders bilgilerini ayarla
             self.exam_program.set_dersler(self.dersler)
             self.exam_program.set_excluded_courses(list(self.excluded_courses))
-            
-            # Tarih bilgilerini kayıtlı değerlerden al
+
+            # Tarih aralığı
             if self.saved_start_date and self.saved_end_date:
                 self.exam_program.set_tarih_araligi(
                     self.saved_start_date.toString(Qt.ISODate),
                     self.saved_end_date.toString(Qt.ISODate)
                 )
-            
-            # Hariç günleri ayarla
+
+            # Hariç günler
             haris_gunler = []
             if self.saved_cumartesi:
                 haris_gunler.append("Cumartesi")
             if self.saved_pazar:
                 haris_gunler.append("Pazar")
             self.exam_program.set_haris_gunler(haris_gunler)
-            
-            # Sınav türünü ayarla
+
+            # Sınav türü
             self.exam_program.set_sinav_turu(self.saved_sinav_turu)
-            
-            # Sınav sürelerini ayarla
+
+            # Süreler
             self.exam_program.set_varsayilan_sure(self.saved_varsayilan_sure)
             if self.saved_istisna_ders:
                 self.exam_program.set_istisna_ders(self.saved_istisna_ders, self.saved_istisna_sure)
-            
-            # Bekleme süresini ayarla
+
+            # Bekleme süresi
             self.exam_program.set_bekleme_suresi(self.saved_bekleme)
-            
-            # Önce sınıf ve öğrenci verilerini al
-            get_class_and_student_worker = GetClasses("all_classes", self.user_info)
-            get_class_and_student_worker.finished.connect(self.handle_classes_and_students)
-            get_class_and_student_worker.start()
-            
+
+            # ✅ THREAD artık self attribute olarak tutuluyor
+            self.get_class_and_student_worker = GetClasses("all_classes", self.user_info)
+            self.get_class_and_student_worker.finished.connect(self.handle_classes_and_students)
+            self.get_class_and_student_worker.start()
+
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"❌ Program oluşturulurken hata oluştu:\n{str(e)}")
-            
+
+
     def handle_classes_and_students(self, response):
         """Sınıf ve öğrenci verilerini işler."""
-        if response.get("status") != "success":
-            QMessageBox.critical(
-                self, "Hata", 
-                f"❌ Sınıf ve öğrenci bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}"
-            )
-            return
-        
-        # Sınıf ve öğrenci verilerini sakla
-        self.classes_and_their_students = response.get("classes", {})
-        
-        # Şimdi classroom verilerini al
-        get_classroom_worker = ClassroomRequests("exam_classrooms", user_info=self.user_info)
-        get_classroom_worker.finished.connect(self.handle_classroom_response)
-        get_classroom_worker.start()
-        
+        try:
+            if response.get("status") != "success":
+                QMessageBox.critical(
+                    self, "Hata",
+                    f"❌ Sınıf ve öğrenci bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}"
+                )
+                return
+
+            self.classes_and_their_students = response.get("classes", {})
+
+            # ✅ Worker referansı kaybolmasın
+            self.get_classroom_worker = ClassroomRequests("exam_classrooms", user_info=self.user_info)
+            self.get_classroom_worker.finished.connect(self.handle_classroom_response)
+            self.get_classroom_worker.start()
+
+        finally:
+            if hasattr(self, "get_class_and_student_worker"):
+                self.get_class_and_student_worker.quit()
+                self.get_class_and_student_worker.wait()
+
+
     def handle_classroom_response(self, response):
         """Classroom verilerini işler ve sınav programını oluşturur."""
-        if response.get("status") != "success":
-            QMessageBox.warning(
-                self, "Uyarı", 
-                f"⚠️ Sınıf bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}\n\n"
-                "Program varsayılan odalarla oluşturulacak."
-            )
-            raise Exception("Classroom verileri alınamadı")
-        else:
-            classrooms_list = response.get("classrooms", [])
-            self.classrooms_data = []
-            
-            for classroom in classrooms_list:
-                self.classrooms_data.append({
-                    'id': classroom.get('classroom_id', ''),
-                    'name': classroom.get('classroom_name', ''),
-                    'capacity': classroom.get('capacity', 0)
-                })
-        
-        self.create_exam_program()
+        try:
+            if response.get("status") != "success":
+                QMessageBox.warning(
+                    self, "Uyarı",
+                    f"⚠️ Sınıf bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}\n\n"
+                    "Program varsayılan odalarla oluşturulacak."
+                )
+                raise Exception("Classroom verileri alınamadı")
+            else:
+                classrooms_list = response.get("classrooms", [])
+                self.classrooms_data = [
+                    {
+                        'id': c.get('classroom_id', ''),
+                        'name': c.get('classroom_name', ''),
+                        'capacity': c.get('capacity', 0)
+                    }
+                    for c in classrooms_list
+                ]
+
+            self.create_exam_program()
+
+        finally:
+            # Thread'i güvenli biçimde kapat
+            if hasattr(self, "get_classroom_worker"):
+                self.get_classroom_worker.quit()
+                self.get_classroom_worker.wait()
+                
         
     def create_exam_program(self):
-        """Tüm veriler toplandıktan sonra sınav programını oluşturur."""
         try:
             # Verilerin kontrolü
             if not self.exam_program:

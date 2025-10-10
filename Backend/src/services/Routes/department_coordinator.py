@@ -176,12 +176,17 @@ def exam_classrooms(user: User = Depends(require_coordinator)):
         classrooms_list, status, msg = get_all_classrooms(user.department)
         
         if status == 'error':
+            print(f"Error while fetching exam classrooms: {msg}")
             return {
                 "classrooms": [],
                 "message": "Error while fetching exam classrooms.",
                 'status': 'error',
                 'detail': msg
             }
+            
+        print(f"Fetched {len(classrooms_list)} exam classrooms for department {user.department}")
+        for cls in classrooms_list:
+            print(f"Classroom ID: {cls['classroom_id']}, Name: {cls['classroom_name']}, Capacity: {cls['capacity']}")
         
         return {
             "classrooms": classrooms_list,
@@ -191,6 +196,7 @@ def exam_classrooms(user: User = Depends(require_coordinator)):
         }
         
     except Exception as e:
+        print(f"Exception while fetching exam classrooms: {e}")
         return {
             "classrooms": [],
             "message": "Error while fetching exam classrooms.",

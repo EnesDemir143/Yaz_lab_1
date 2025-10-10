@@ -9,13 +9,13 @@ def get_all_classrooms(department: str) -> list[dict]:
                 SELECT 
                     classroom_id,
                     classroom_name,
-                    capacity,
+                    capacity
                 FROM classrooms
                 WHERE department_name = %s;
                 """
                 cursor.execute(query, (department,))
-                classes = cursor.fetchall()
+                classrooms = cursor.fetchall()
     except Exception as e:
         print(f"Error while fetching all classes: {e}")
         return [], 'error', str(e)
-    return classes, 'success', 'All classes fetched successfully.'
+    return classrooms, 'success', 'All classes fetched successfully.'
