@@ -394,37 +394,68 @@ def _create_schedule_summary(assignments: List[Dict]) -> List[Dict]:
 
 def _write_excel_output(schedule_summary: List[Dict], assignments: List[Dict], 
                        warnings: List[str], exam_program: ExamProgram, output_path: str):
-    """Excel formatında çıktı oluşturur."""
+    """Excel formatında çıktı oluşturur (debug modlu)."""
+    
+    print("\n\n🧩 DEBUG: Excel yazma işlemi başlıyor")
+    print(f"📄 schedule_summary uzunluk: {len(schedule_summary)}")
+    print(f"📄 assignments uzunluk: {len(assignments)}")
+    print(f"📄 warnings uzunluk: {len(warnings)}")
+    
+    if not schedule_summary:
+        print("⚠️ Excel boş veriyle oluşturulmaya çalışıldı, atlanıyor.")
+        return
     
     try:
         with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-            # 1. Ana Sınav Programı
-            df_schedule = pd.DataFrame(schedule_summary)
-            if not df_schedule.empty:
-                df_schedule.columns = ['Ders ID', 'Ders Adı', 'Sınıf', 'Tarih', 'Seans', 
-                                      'Oda', 'Öğrenci Sayısı', 'Süre (dk)']
-            df_schedule.to_excel(writer, sheet_name='Sınav Programı', index=False)
             
-            # 2. Oda Bazlı Görünüm
+            # 1️⃣ Ana Sınav Programı
+            df_schedule = pd.DataFrame(schedule_summary)
+            print(f"🧠 df_schedule shape: {df_schedule.shape}")
+            print(f"🧠 df_schedule sütunları: {list(df_schedule.columns)}")
+
+            if df_schedule.empty:
+                print("⚠️ df_schedule boş, yazılmayacak")
+            else:
+                # Dinamik olarak sütunları yeniden adlandıralım
+                rename_map = {
+                    'course_id': 'Ders ID',
+                    'course_name': 'Ders Adı',
+                    'class_group': 'Sınıf',
+                    'day': 'Tarih',
+                    'slot_in_day': 'Seans',
+                    'room_name': 'Oda',
+                    'expected_students': 'Öğrenci Sayısı',
+                    'duration_minutes': 'Süre (dk)',
+                }
+                df_schedule = df_schedule.rename(columns=rename_map)
+                print(f"🧩 Yeni sütun adları: {list(df_schedule.columns)}")
+                df_schedule.to_excel(writer, sheet_name='Sınav Programı', index=False)
+                print("✅ Ana program sheet yazıldı")
+
+            # 2️⃣ Oda Bazlı Görünüm
             room_view = []
             slot_names = ['Sabah (09:00-10:15)', 'Öğle (11:00-12:15)', 'Akşam (14:00-15:15)']
             for assignment in assignments:
                 room_view.append({
-                    'Oda': assignment['room_name'],
-                    'Gün': assignment['day'],
-                    'Seans': slot_names[assignment['slot_in_day']] if assignment['slot_in_day'] < 3 else f"Slot {assignment['slot_in_day'] + 1}",
-                    'Ders': assignment['course_name'],
-                    'Öğrenci Sayısı': assignment['expected_students'],
-                    'Süre': f"{assignment['duration_minutes']} dk"
+                    'Oda': assignment.get('room_name', '???'),
+                    'Gün': assignment.get('day', '???'),
+                    'Seans': slot_names[assignment.get('slot_in_day', 0)] if assignment.get('slot_in_day', 0) < 3 else f"Slot {assignment['slot_in_day'] + 1}",
+                    'Ders': assignment.get('course_name', '???'),
+                    'Öğrenci Sayısı': assignment.get('expected_students', '?'),
+                    'Süre': f"{assignment.get('duration_minutes', '?')} dk"
                 })
-            pd.DataFrame(room_view).to_excel(writer, sheet_name='Oda Bazlı Görünüm', index=False)
-            
-            # 3. Program Bilgileri
+            print(f"🧩 room_view uzunluk: {len(room_view)}")
+            if room_view:
+                pd.DataFrame(room_view).to_excel(writer, sheet_name='Oda Bazlı Görünüm', index=False)
+                print("✅ Oda Bazlı Görünüm sheet yazıldı")
+            else:
+                print("⚠️ room_view boş!")
+
+            # 3️⃣ Program Bilgileri
             istisna_text = "Yok"
-            if exam_program.istisna_dersler:
+            if getattr(exam_program, "istisna_dersler", None):
                 istisna_list = [f"{d}: {s} dk" for d, s in exam_program.istisna_dersler.items()]
                 istisna_text = ", ".join(istisna_list)
-            
             program_info = pd.DataFrame([{
                 'Sınav Türü': exam_program.sinav_turu or 'Belirtilmemiş',
                 'Başlangıç Tarihi': exam_program.tarih_baslangic,
@@ -437,14 +468,17 @@ def _write_excel_output(schedule_summary: List[Dict], assignments: List[Dict],
                 'Toplam Ders': len(schedule_summary),
                 'Hariç Dersler': ', '.join(exam_program.excluded_courses) if exam_program.excluded_courses else 'Yok'
             }])
+            print(f"🧩 program_info sütunları: {list(program_info.columns)}")
             program_info.to_excel(writer, sheet_name='Program Bilgileri', index=False)
-            
-            # 4. Uyarılar
+            print("✅ Program Bilgileri sheet yazıldı")
+
+            # 4️⃣ Uyarılar
             pd.DataFrame({'Uyarılar': warnings if warnings else ['✅ Uyarı yok']}).to_excel(
                 writer, sheet_name='Uyarılar', index=False)
-            
-        print(f"✅ Excel dosyası oluşturuldu: {output_path}")
-            
+            print("✅ Uyarılar sheet yazıldı")
+
+        print(f"✅ Excel dosyası başarıyla oluşturuldu: {output_path}")
+
     except Exception as e:
         error_msg = f"❌ Excel oluşturulamadı: {str(e)}"
         warnings.append(error_msg)

@@ -186,7 +186,10 @@ class CoordinatorDashboard(QWidget):
     
     def on_exam_program_created(self, results):
         self.text_output.append("\n✅ Sınav programı başarıyla oluşturuldu!\n")
-        self.text_output.append(f"📝 Seçilen dersler: {len(results['kalan_dersler'])} ders\n")
+        exam_info = results.get('exam_program_info', {})
+        kalan_dersler = exam_info.get('kalan_dersler', [])
+        self.text_output.append(f"📝 Seçilen dersler: {len(kalan_dersler)} ders\n")
+
         
         self.text_output.append("📊 Şu ana kadar yapılan işlemler:\n")
         self.text_output.append(" - Sınıflar oluşturuldu ✅\n")
