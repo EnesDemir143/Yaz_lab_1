@@ -7,36 +7,6 @@ class DersSecimi:
         self.token = token
         self.dersler = self._fetch_courses_from_api()
 
-    def _fetch_courses_from_api(self):
-       
-        endpoint = f"{self.api_base_url}/all_courses"
-        headers = {
-            "Authorization": f"Bearer {self.token}"
-        }
-
-        try:
-            response = requests.post(endpoint, headers=headers)
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("status") == "success":
-                    return [d["class_name"] for d in data["courses"]]
-                else:
-                    print("⚠️ API hata mesajı:", data.get("message"))
-            else:
-                print(f"⚠️ HTTP Hatası: {response.status_code}")
-        except Exception as e:
-            print("❌ API bağlantı hatası:", str(e))
-
-        
-        return []
-
-    def filtrele(self, cikarilacaklar):
-     
-        return [d for d in self.dersler if d not in cikarilacaklar]
-
-    def __str__(self):
-        return f"Dersler: {self.dersler}"
-
 
 class SinavTarihleri:
     def __init__(self):
