@@ -5,10 +5,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QDate, pyqtSignal
 from PyQt5.QtGui import QFont
-from Backend.src.utils.exams.algoritmalar import (
-    DersSecimi, SinavTarihleri, SinavTuru, SinavSuresi, BeklemeSuresi
-)
 from Frontend.src.Coordinator.ExamProgramPage.exam_program_worker import GetClasses
+from Backend.src.utils.exams.ExanProgramClass import ExamProgram
 
 
 class ExamProgramPage(QWidget):
@@ -20,6 +18,17 @@ class ExamProgramPage(QWidget):
         self.dersler = []
         self.excluded_courses = set()  # İşaretlenen, programa dahil edilmeyecek dersler
         self.current_step = 1
+        
+        self.saved_start_date = None
+        self.saved_end_date = None
+        self.saved_cumartesi = False
+        self.saved_pazar = False
+        self.saved_sinav_turu = "Vize"
+        self.saved_varsayilan_sure = 75
+        self.saved_istisna_ders = None
+        self.saved_istisna_sure = 60
+        self.saved_bekleme = 15
+        
         self.init_ui()
 
     # -------------------------- UI SETUP --------------------------
@@ -113,11 +122,44 @@ class ExamProgramPage(QWidget):
         self.progress_label.setText(steps.get(self.current_step, ""))
 
     def go_next(self):
+        self.save_current_step_data()
+        
         if self.current_step < 5:
             self.current_step += 1
             self.load_current_step()
             self.update_buttons()
             self.update_progress()
+
+    def save_current_step_data(self):
+        try:
+            if self.current_step == 2:
+                if hasattr(self, 'start_date') and self.start_date:
+                    self.saved_start_date = self.start_date.date()
+                if hasattr(self, 'end_date') and self.end_date:
+                    self.saved_end_date = self.end_date.date()
+                if hasattr(self, 'check_cumartesi') and self.check_cumartesi:
+                    self.saved_cumartesi = self.check_cumartesi.isChecked()
+                if hasattr(self, 'check_pazar') and self.check_pazar:
+                    self.saved_pazar = self.check_pazar.isChecked()
+            
+            elif self.current_step == 3:
+                if hasattr(self, 'combo_sinav_turu') and self.combo_sinav_turu:
+                    self.saved_sinav_turu = self.combo_sinav_turu.currentText()
+            
+            elif self.current_step == 4:
+                if hasattr(self, 'spin_default') and self.spin_default:
+                    self.saved_varsayilan_sure = self.spin_default.value()
+                if hasattr(self, 'combo_istisna_ders') and self.combo_istisna_ders:
+                    self.saved_istisna_ders = self.combo_istisna_ders.currentData()
+                if hasattr(self, 'spin_istisna') and self.spin_istisna:
+                    self.saved_istisna_sure = self.spin_istisna.value()
+            
+            elif self.current_step == 5:
+                if hasattr(self, 'spin_bekleme') and self.spin_bekleme:
+                    self.saved_bekleme = self.spin_bekleme.value()
+        except Exception as e:
+            QMessageBox.critical(self, "Hata", f"❌ Veriler kaydedilirken hata oluştu:\n{str(e)}")
+
 
     def go_back(self):
         if self.current_step > 1:
@@ -205,12 +247,18 @@ class ExamProgramPage(QWidget):
         self.content_layout.addWidget(date_label)
 
         self.start_date = QDateEdit()
-        self.start_date.setDate(QDate.currentDate())
+        if self.saved_start_date:
+            self.start_date.setDate(self.saved_start_date)
+        else:
+            self.start_date.setDate(QDate.currentDate())
         self.start_date.setCalendarPopup(True)
         self.start_date.setDisplayFormat("dd.MM.yyyy")
 
         self.end_date = QDateEdit()
-        self.end_date.setDate(QDate.currentDate().addDays(10))
+        if self.saved_end_date:
+            self.end_date.setDate(self.saved_end_date)
+        else:
+            self.end_date.setDate(QDate.currentDate().addDays(10))
         self.end_date.setCalendarPopup(True)
         self.end_date.setDisplayFormat("dd.MM.yyyy")
 
@@ -228,7 +276,9 @@ class ExamProgramPage(QWidget):
         exclude_label.setFont(QFont("Arial", 11, QFont.Bold))
         self.content_layout.addWidget(exclude_label)
         self.check_cumartesi = QCheckBox("Cumartesi")
+        self.check_cumartesi.setChecked(self.saved_cumartesi)
         self.check_pazar = QCheckBox("Pazar")
+        self.check_pazar.setChecked(self.saved_pazar)
         for cb in [self.check_cumartesi, self.check_pazar]:
             cb.setCursor(Qt.PointingHandCursor)
             self.content_layout.addWidget(cb)
@@ -248,12 +298,11 @@ class ExamProgramPage(QWidget):
         self.content_layout.addWidget(type_label)
         self.combo_sinav_turu = QComboBox()
         self.combo_sinav_turu.addItems(["Vize", "Final", "Bütünleme"])
+        self.combo_sinav_turu.setCurrentText(self.saved_sinav_turu)
         self.combo_sinav_turu.setCursor(Qt.PointingHandCursor)
         self.combo_sinav_turu.setMinimumHeight(35)
         self.content_layout.addWidget(self.combo_sinav_turu)
         self.content_layout.addStretch()
-
-    # -------------------------- ADIM 4 --------------------------
 
     def load_step_4(self):
         self.clear_content()
@@ -265,10 +314,17 @@ class ExamProgramPage(QWidget):
         default_label = QLabel("⏱️ Varsayılan Sınav Süresi:")
         default_label.setFont(QFont("Arial", 11, QFont.Bold))
         self.content_layout.addWidget(default_label)
-        default_info = QLabel("Tüm dersler için varsayılan sınav süresi: 75 dakika")
+        default_info = QLabel("Tüm dersler için varsayılan sınav süresi:")
         default_info.setStyleSheet("color: #888; font-style: italic;")
         self.content_layout.addWidget(default_info)
 
+        self.spin_default = QSpinBox()
+        self.spin_default.setRange(30, 180)
+        self.spin_default.setValue(self.saved_varsayilan_sure)
+        self.spin_default.setSuffix(" dakika")
+        self.spin_default.setMinimumHeight(35)
+        self.content_layout.addWidget(self.spin_default)
+        self.content_layout.addSpacing(20)
 
         # İstisna dersi
         exception_label = QLabel("⚠️ İstisna Ders (Opsiyonel):")
@@ -283,6 +339,12 @@ class ExamProgramPage(QWidget):
         kalan_dersler = [d for d in self.dersler if d not in self.excluded_courses]
         for ders in kalan_dersler:
             self.combo_istisna_ders.addItem(ders, ders)
+        
+        # Önceden seçili değeri geri yükle
+        if self.saved_istisna_ders:
+            index = self.combo_istisna_ders.findData(self.saved_istisna_ders)
+            if index >= 0:
+                self.combo_istisna_ders.setCurrentIndex(index)
 
         self.combo_istisna_ders.setCursor(Qt.PointingHandCursor)
         self.combo_istisna_ders.setMinimumHeight(35)
@@ -293,13 +355,11 @@ class ExamProgramPage(QWidget):
         self.content_layout.addWidget(duration_label)
         self.spin_istisna = QSpinBox()
         self.spin_istisna.setRange(30, 180)
-        self.spin_istisna.setValue(60)
+        self.spin_istisna.setValue(self.saved_istisna_sure)
         self.spin_istisna.setSuffix(" dakika")
         self.spin_istisna.setMinimumHeight(35)
         self.content_layout.addWidget(self.spin_istisna)
         self.content_layout.addStretch()
-
-    # -------------------------- ADIM 5 --------------------------
 
     def load_step_5(self):
         self.clear_content()
@@ -317,71 +377,67 @@ class ExamProgramPage(QWidget):
 
         self.spin_bekleme = QSpinBox()
         self.spin_bekleme.setRange(5, 60)
-        self.spin_bekleme.setValue(15)
+        self.spin_bekleme.setValue(self.saved_bekleme)
         self.spin_bekleme.setSuffix(" dakika")
         self.spin_bekleme.setMinimumHeight(35)
         self.content_layout.addWidget(self.spin_bekleme)
         self.content_layout.addStretch()
 
     # -------------------------- TAMAMLAMA --------------------------
-
     def finish_program(self):
         try:
-            # Ders seçimi
-            cikarilacaklar = list(self.excluded_courses)
-            secim = DersSecimi(self.dersler)
-            kalan_dersler = secim.filtrele(cikarilacaklar)
-
-            # Tarih bilgisi
-            tarih = SinavTarihleri()
-            tarih.set_tarih_araligi(
-                self.start_date.date().toString(Qt.ISODate),
-                self.end_date.date().toString(Qt.ISODate)
-            )
+            # Son adımdaki verileri kaydet
+            self.save_current_step_data()
+            
+            # ExamProgram objesi oluştur
+            exam_program = ExamProgram()
+            
+            # Ders bilgilerini ayarla
+            exam_program.set_dersler(self.dersler)
+            exam_program.set_excluded_courses(list(self.excluded_courses))
+            
+            # Tarih bilgilerini kayıtlı değerlerden al
+            if self.saved_start_date and self.saved_end_date:
+                exam_program.set_tarih_araligi(
+                    self.saved_start_date.toString(Qt.ISODate),
+                    self.saved_end_date.toString(Qt.ISODate)
+                )
+            
+            # Hariç günleri ayarla
             haris_gunler = []
-            if self.check_cumartesi.isChecked():
+            if self.saved_cumartesi:
                 haris_gunler.append("Cumartesi")
-            if self.check_pazar.isChecked():
+            if self.saved_pazar:
                 haris_gunler.append("Pazar")
-            tarih.set_haris_gunler(haris_gunler)
-
-            # Tür
-            tur = SinavTuru()
-            tur.set_tur(self.combo_sinav_turu.currentText())
-
-            # Süre
-            sure = SinavSuresi()
-            sure.set_varsayilan(self.spin_default.value())
-            if hasattr(self, "combo_istisna_ders"):
-                istisna_ders = self.combo_istisna_ders.currentData()
-                if istisna_ders:
-                    sure.set_istisna(istisna_ders, self.spin_istisna.value())
-
-            # Bekleme
-            bekleme = BeklemeSuresi()
-            bekleme.set_sure(self.spin_bekleme.value())
-
-            results = {
-                "kalan_dersler": kalan_dersler,
-                "tarih_bilgisi": tarih,
-                "sinav_turu": tur,
-                "sinav_suresi": sure,
-                "bekleme_suresi": bekleme
-            }
-
+            exam_program.set_haris_gunler(haris_gunler)
+            
+            # Sınav türünü ayarla
+            exam_program.set_sinav_turu(self.saved_sinav_turu)
+            
+            # Sınav sürelerini ayarla
+            exam_program.set_varsayilan_sure(self.saved_varsayilan_sure)
+            if self.saved_istisna_ders:
+                exam_program.set_istisna_ders(self.saved_istisna_ders, self.saved_istisna_sure)
+            
+            # Bekleme süresini ayarla
+            exam_program.set_bekleme_suresi(self.saved_bekleme)
+            
+            # Sonuçları al
+            results = exam_program.to_dict()
+            
             print("---- SINAV PROGRAMI SONUÇLARI ----")
             print("Kalan Dersler:", results["kalan_dersler"])
-
+            
             QMessageBox.information(
                 self,
                 "Başarılı",
                 f"✅ Sınav programı başarıyla oluşturuldu!\n\n"
-                f"📚 Ders sayısı: {len(kalan_dersler)}\n"
-                f"📝 Sınav türü: {self.combo_sinav_turu.currentText()}\n"
-                f"⏱️ Varsayılan süre: {self.spin_default.value()} dk"
+                f"📚 Ders sayısı: {len(results['kalan_dersler'])}\n"
+                f"📝 Sınav türü: {results['sinav_turu']}\n"
+                f"⏱️ Varsayılan süre: {results['varsayilan_sure']} dk"
             )
-
+            
             self.program_created.emit(results)
-
+            
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"❌ Program oluşturulurken hata oluştu:\n{str(e)}")
