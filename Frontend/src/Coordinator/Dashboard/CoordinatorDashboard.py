@@ -12,6 +12,7 @@ from Frontend.src.Coordinator.Classroom.clasroomPage import ClassroomPage
 from Frontend.src.Coordinator.ClassList.class_list_page import ClassListPage
 from Frontend.src.Coordinator.Classroom.insert_classroom_page import InsertClassroomPage
 from Frontend.src.Coordinator.ExamProgramPage.s_interface import ExamProgramPage
+from Frontend.src.Coordinator.ExamProgramPage.created_exam_program_page import CreatedExamProgramPage
 
 
 class CoordinatorDashboard(QWidget):
@@ -51,6 +52,10 @@ class CoordinatorDashboard(QWidget):
             "👨‍🎓 Öğrenci Listesi",
             "📖 Ders Listesi",
             "🎓 Sınav Programı Oluştur",
+        ]
+        
+        self.last_menu_items = [
+            "🗂 Oluşturulmuş Sınav Programı"
         ]
 
         for item_text in self.initial_menu_items:
@@ -98,6 +103,7 @@ class CoordinatorDashboard(QWidget):
         self.student_list_page = StudentListPage(self.user_info, self)
         self.class_list_page = ClassListPage(self.user_info, self)
         self.exam_program_page = ExamProgramPage(self.user_info, self)
+        self.created_exam_program_page = CreatedExamProgramPage(self.user_info, self)
         
         # Signal bağlantısı
         self.exam_program_page.program_created.connect(self.on_exam_program_created)
@@ -110,6 +116,7 @@ class CoordinatorDashboard(QWidget):
         self.stack.addWidget(self.student_list_page)  # 5
         self.stack.addWidget(self.class_list_page)  # 6
         self.stack.addWidget(self.exam_program_page)  # 7
+        self.stack.addWidget(self.created_exam_program_page) # 8
         
         content_layout.addWidget(self.title_label)
         content_layout.addWidget(self.info_label)
@@ -160,7 +167,6 @@ class CoordinatorDashboard(QWidget):
         self.switch_page(3)
     
     def enable_next_step_after_student_upload(self):
-        """Öğrenci yükleme tamamlandıktan sonra çağrılır"""
         existing_texts = [self.menu.item(i).text() for i in range(self.menu.count())]
         for text in self.later_menu_items:
             if text not in existing_texts:
@@ -168,7 +174,6 @@ class CoordinatorDashboard(QWidget):
                 item.setSizeHint(QSize(180, 40))
                 self.menu.addItem(item)
 
-        # Tüm menü itemlerini aktif et
         for i in range(self.menu.count()):
             item = self.menu.item(i)
             item.setFlags(item.flags() | Qt.ItemIsEnabled)
@@ -181,11 +186,18 @@ class CoordinatorDashboard(QWidget):
         self.switch_page(6)
     
     def on_exam_program_created(self, results):
-        """Sınav programı oluşturulunca çağrılır"""
         self.text_output.append("\n✅ Sınav programı başarıyla oluşturuldu!\n")
         self.text_output.append(f"📝 Seçilen dersler: {len(results['kalan_dersler'])} ders\n")
         
-        # Burada backend'e gönderme veya kaydetme işlemleri yapılabilir
+        existing_texts = [self.menu.item(i).text() for i in range(self.menu.count())]
+        for text in self.last_menu_items:
+            if text not in existing_texts:
+                item = QListWidgetItem(text)
+                item.setSizeHint(QSize(180, 40))
+                self.menu.addItem(item)
+                
+        self.menu.setCurrentRow(7)
+        self.switch_page(7)
             
     def on_first_classroom_added(self):
         self.stack.setCurrentIndex(2)
@@ -216,6 +228,7 @@ class CoordinatorDashboard(QWidget):
             4: ("student_list", "Öğrenci Listesi"),
             5: ("class_list", "Ders Listesi"),
             6: ("exam_program", "Sınav Programı Oluştur"),
+            7: ("created_exam_program", "Oluşturulmuş Sınav Programları"),
         }
         
         if index in mapping:
