@@ -28,6 +28,7 @@ class ExamProgramPage(QWidget):
         self.saved_istisna_ders = None
         self.saved_istisna_sure = 60
         self.saved_bekleme = 15
+        self.exam_conflict = True 
         
         self.init_ui()
 
@@ -43,7 +44,7 @@ class ExamProgramPage(QWidget):
         header.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(header)
 
-        self.progress_label = QLabel("Adım 1/5: Ders Seçimi")
+        self.progress_label = QLabel("Adım 1/6: Ders Seçimi")
         self.progress_label.setFont(QFont("Arial", 11))
         self.progress_label.setAlignment(Qt.AlignCenter)
         self.progress_label.setStyleSheet("color: #4CAF50; padding: 10px;")
@@ -108,23 +109,24 @@ class ExamProgramPage(QWidget):
     
     def update_buttons(self):
         self.back_btn.setVisible(self.current_step > 1)
-        self.next_btn.setVisible(self.current_step < 5)
-        self.finish_btn.setVisible(self.current_step == 5)
+        self.next_btn.setVisible(self.current_step < 6)
+        self.finish_btn.setVisible(self.current_step == 6)
 
     def update_progress(self):
         steps = {
-            1: "Adım 1/5: Ders Seçimi",
-            2: "Adım 2/5: Sınav Tarihleri",
-            3: "Adım 3/5: Sınav Türü",
-            4: "Adım 4/5: Sınav Süresi",
-            5: "Adım 5/5: Bekleme Süresi"
+            1: "Adım 1/6: Ders Seçimi",
+            2: "Adım 2/6: Sınav Tarihleri",
+            3: "Adım 3/6: Sınav Türü",
+            4: "Adım 4/6: Sınav Süresi",
+            5: "Adım 5/6: Bekleme Süresi",
+            6: "Adım 6/6: Çakışma Kontrolü"
         }
         self.progress_label.setText(steps.get(self.current_step, ""))
 
     def go_next(self):
         self.save_current_step_data()
         
-        if self.current_step < 5:
+        if self.current_step < 6:
             self.current_step += 1
             self.load_current_step()
             self.update_buttons()
@@ -157,6 +159,11 @@ class ExamProgramPage(QWidget):
             elif self.current_step == 5:
                 if hasattr(self, 'spin_bekleme') and self.spin_bekleme:
                     self.saved_bekleme = self.spin_bekleme.value()
+                    
+            elif self.current_step == 6:
+                if hasattr(self, 'check_conflict'):
+                    self.exam_conflict = not self.check_conflict.isChecked()
+                    
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"❌ Veriler kaydedilirken hata oluştu:\n{str(e)}")
 
@@ -177,7 +184,8 @@ class ExamProgramPage(QWidget):
             2: self.load_step_2,
             3: self.load_step_3,
             4: self.load_step_4,
-            5: self.load_step_5
+            5: self.load_step_5,
+            6: self.load_step_6
         }
         steps[self.current_step]()
 
@@ -381,6 +389,26 @@ class ExamProgramPage(QWidget):
         self.spin_bekleme.setSuffix(" dakika")
         self.spin_bekleme.setMinimumHeight(35)
         self.content_layout.addWidget(self.spin_bekleme)
+        self.content_layout.addStretch()
+        
+        
+    def load_step_6(self):
+        self.clear_content()
+
+        title = QLabel("🔍 Ders Çakışma Kontrolü")
+        title.setFont(QFont("Arial", 12, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        self.content_layout.addWidget(title)
+        self.content_layout.addSpacing(20)
+
+        self.check_conflict = QCheckBox(
+            "Bu seçenek seçilirse, dersler aynı anda sınav olamaz."
+        )
+        self.check_conflict.setChecked(self.exam_conflict)
+        self.check_conflict.setCursor(Qt.PointingHandCursor)
+        self.check_conflict.setFont(QFont("Arial", 15))
+        self.content_layout.addWidget(self.check_conflict)
+
         self.content_layout.addStretch()
 
     # -------------------------- TAMAMLAMA --------------------------
