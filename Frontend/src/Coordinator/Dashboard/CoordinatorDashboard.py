@@ -174,20 +174,25 @@ class CoordinatorDashboard(QWidget):
                 item.setSizeHint(QSize(180, 40))
                 self.menu.addItem(item)
 
-        for i in range(self.menu.count()):
+        for i in range(1, self.menu.count()):
             item = self.menu.item(i)
             item.setFlags(item.flags() | Qt.ItemIsEnabled)
             item.setForeground(Qt.white)
 
         self.text_output.append("✅ Öğrenci yüklemesi tamamlandı, ek menüler eklendi.\n")
         
-        # Otomatik olarak Sınav Programı sayfasına geç
-        self.menu.setCurrentRow(6)  # "🎓 Sınav Programı Oluştur" indexi
+        self.menu.setCurrentRow(6)  
         self.switch_page(6)
     
     def on_exam_program_created(self, results):
         self.text_output.append("\n✅ Sınav programı başarıyla oluşturuldu!\n")
         self.text_output.append(f"📝 Seçilen dersler: {len(results['kalan_dersler'])} ders\n")
+        
+        self.text_output.append("📊 Şu ana kadar yapılan işlemler:\n")
+        self.text_output.append(" - Sınıflar oluşturuldu ✅\n")
+        self.text_output.append(" - Ders listesi yüklendi ✅\n")
+        self.text_output.append(" - Öğrenci listesi yüklendi ✅\n")
+        self.text_output.append(" - Sınav programı oluşturuldu ✅\n")
         
         existing_texts = [self.menu.item(i).text() for i in range(self.menu.count())]
         for text in self.last_menu_items:
@@ -195,6 +200,10 @@ class CoordinatorDashboard(QWidget):
                 item = QListWidgetItem(text)
                 item.setSizeHint(QSize(180, 40))
                 self.menu.addItem(item)
+                
+        general_item = self.menu.item(0)
+        general_item.setFlags(general_item.flags() | Qt.ItemIsEnabled)
+        general_item.setForeground(Qt.white)
                 
         self.menu.setCurrentRow(7)
         self.switch_page(7)
@@ -214,12 +223,10 @@ class CoordinatorDashboard(QWidget):
         return w
     
     def switch_page(self, index):
-        # Sınıf ekleme tamamlanmadıysa ve Sınıf Yönetimi dışında bir sayfa seçildiyse, engelle
         if not self.classroom_completed and index != 1:
             self.menu.setCurrentRow(1)
             return
-        
-        # Güncellenmiş mapping
+
         mapping = {
             0: ("general", "Genel"),
             1: ("classroom_management", "Sınıf Yönetimi"),
@@ -230,19 +237,22 @@ class CoordinatorDashboard(QWidget):
             6: ("exam_program", "Sınav Programı Oluştur"),
             7: ("created_exam_program", "Oluşturulmuş Sınav Programları"),
         }
-        
+
         if index in mapping:
             self.current_endpoint, title = mapping[index]
             self.title_label.setText(title)
-            
-            # Index ayarlaması
-            if index == 1 and not self.classroom_completed:
+
+            # Sayfa eşlemesi
+            if index == 0:
+                self.stack.setCurrentIndex(0)  # Genel sayfa
+            elif index == 1 and not self.classroom_completed:
                 self.stack.setCurrentIndex(1)  # InsertClassroomPage
             elif index == 1 and self.classroom_completed:
                 self.stack.setCurrentIndex(2)  # ClassroomPage
             else:
-                # Diğer sayfalar için index'i 1 artır
+                # Menü indexi ile stack indexi aynı hizaya gelsin
                 self.stack.setCurrentIndex(index + 1)
+
     
     def logout(self):
         self.controller.logout()
