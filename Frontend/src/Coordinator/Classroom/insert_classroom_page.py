@@ -177,7 +177,6 @@ class InsertClassroomPage(QWidget):
         self.init_ui()
     
     def clear_form(self):
-        """Form alanlarını temizle"""
         self.classroom_id.clear()
         self.classroom_name.clear()
         self.department.clear()
