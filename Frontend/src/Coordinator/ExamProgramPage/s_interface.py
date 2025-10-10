@@ -32,6 +32,10 @@ class ExamProgramPage(QWidget):
         self.saved_bekleme = 15
         self.exam_conflict = True 
         
+        self.classes_and_their_students = None
+        self.classrooms_data = None
+        self.exam_program = None
+        
         self.init_ui()
 
     # -------------------------- UI SETUP --------------------------
@@ -420,15 +424,15 @@ class ExamProgramPage(QWidget):
             self.save_current_step_data()
             
             # ExamProgram objesi oluştur
-            exam_program = ExamProgram()
+            self.exam_program = ExamProgram()
             
             # Ders bilgilerini ayarla
-            exam_program.set_dersler(self.dersler)
-            exam_program.set_excluded_courses(list(self.excluded_courses))
+            self.exam_program.set_dersler(self.dersler)
+            self.exam_program.set_excluded_courses(list(self.excluded_courses))
             
             # Tarih bilgilerini kayıtlı değerlerden al
             if self.saved_start_date and self.saved_end_date:
-                exam_program.set_tarih_araligi(
+                self.exam_program.set_tarih_araligi(
                     self.saved_start_date.toString(Qt.ISODate),
                     self.saved_end_date.toString(Qt.ISODate)
                 )
@@ -439,65 +443,120 @@ class ExamProgramPage(QWidget):
                 haris_gunler.append("Cumartesi")
             if self.saved_pazar:
                 haris_gunler.append("Pazar")
-            exam_program.set_haris_gunler(haris_gunler)
+            self.exam_program.set_haris_gunler(haris_gunler)
             
             # Sınav türünü ayarla
-            exam_program.set_sinav_turu(self.saved_sinav_turu)
+            self.exam_program.set_sinav_turu(self.saved_sinav_turu)
             
             # Sınav sürelerini ayarla
-            exam_program.set_varsayilan_sure(self.saved_varsayilan_sure)
+            self.exam_program.set_varsayilan_sure(self.saved_varsayilan_sure)
             if self.saved_istisna_ders:
-                exam_program.set_istisna_ders(self.saved_istisna_ders, self.saved_istisna_sure)
+                self.exam_program.set_istisna_ders(self.saved_istisna_ders, self.saved_istisna_sure)
             
             # Bekleme süresini ayarla
-            exam_program.set_bekleme_suresi(self.saved_bekleme)
+            self.exam_program.set_bekleme_suresi(self.saved_bekleme)
             
+            # Önce sınıf ve öğrenci verilerini al
             get_class_and_student_worker = GetClasses("all_classes", self.user_info)
             get_class_and_student_worker.finished.connect(self.handle_classes_and_students)
             get_class_and_student_worker.start()
-            
-            get_classroom_worker = ClassroomRequests("just_classes", user_info=self.user_info)
-            get_classroom_worker.finished.connect(self.handle_classroom_response)
-            get_classroom_worker.start()
-            
-            results = create_exam_schedule(exam_program, self.classes_and_their_students, self.classrooms_list)
-            
-            print("---- SINAV PROGRAMI SONUÇLARI ----")
-            print("Kalan Dersler:", results["kalan_dersler"])
-            
-            QMessageBox.information(
-                self,
-                "Başarılı",
-                f"✅ Sınav programı başarıyla oluşturuldu!\n\n"
-                f"📚 Ders sayısı: {len(results['kalan_dersler'])}\n"
-                f"📝 Sınav türü: {results['sinav_turu']}\n"
-                f"⏱️ Varsayılan süre: {results['varsayilan_sure']} dk"
-            )
-            
-            self.program_created.emit(results)
             
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"❌ Program oluşturulurken hata oluştu:\n{str(e)}")
             
     def handle_classes_and_students(self, response):
+        """Sınıf ve öğrenci verilerini işler."""
         if response.get("status") != "success":
-            QMessageBox.critical(self, "Hata", f"❌ Sınıf ve öğrenci bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}, message: {response.get('message', '')}")
+            QMessageBox.critical(
+                self, "Hata", 
+                f"❌ Sınıf ve öğrenci bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}"
+            )
             return
         
+        # Sınıf ve öğrenci verilerini sakla
         self.classes_and_their_students = response.get("classes", {})
-        print("---- SINIF VE ÖĞRENCİ BİLGİLERİ ----")
-        for class_id, class_info in self.classes_and_their_students.items():
-            print(f"Sınıf: {class_info['class_name']} (ID: {class_id})")
-            for student in class_info['students']:
-                print(f" - {student['student_num']}: {student['name']} {student['surname']}")
-            break
+        
+        # Şimdi classroom verilerini al
+        get_classroom_worker = ClassroomRequests("exam_classrooms", user_info=self.user_info)
+        get_classroom_worker.finished.connect(self.handle_classroom_response)
+        get_classroom_worker.start()
         
     def handle_classroom_response(self, response):
+        """Classroom verilerini işler ve sınav programını oluşturur."""
         if response.get("status") != "success":
-            QMessageBox.critical(self, "Hata", f"❌ Sınıf bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}, message: {response.get('message', '')}")
-            return
+            QMessageBox.warning(
+                self, "Uyarı", 
+                f"⚠️ Sınıf bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}\n\n"
+                "Program varsayılan odalarla oluşturulacak."
+            )
+            raise Exception("Classroom verileri alınamadı")
+        else:
+            classrooms_list = response.get("classrooms", [])
+            self.classrooms_data = []
+            
+            for classroom in classrooms_list:
+                self.classrooms_data.append({
+                    'id': classroom.get('classroom_id', ''),
+                    'name': classroom.get('classroom_name', ''),
+                    'capacity': classroom.get('capacity', 0)
+                })
         
-        self.classrooms_list = response.get("classes", [])
-        print("---- SINIF BİLGİLERİ ----")
-        for classroom in self.classrooms_list:
-            print(f"Sınıf: {classroom[1]} (ID: {classroom[0]})")
+        self.create_exam_program()
+        
+    def create_exam_program(self):
+        """Tüm veriler toplandıktan sonra sınav programını oluşturur."""
+        try:
+            # Verilerin kontrolü
+            if not self.exam_program:
+                raise ValueError("ExamProgram nesnesi oluşturulmamış")
+            if not self.classes_and_their_students:
+                raise ValueError("Sınıf ve öğrenci verileri alınamadı")
+            if not self.classrooms_data:
+                raise ValueError("Classroom verileri alınamadı")
+            
+            # Sınav programını oluştur
+            results = create_exam_schedule(
+                exam_program=self.exam_program,
+                class_dict=self.classes_and_their_students,
+                rooms_data=self.classrooms_data,
+                excel_output_path="sinav_programi.xlsx"
+            )
+            
+            # Uyarıları göster
+            warning_text = ""
+            if results.get('warnings'):
+                warning_text = "\n\n⚠️ Uyarılar:\n" + "\n".join(results['warnings'][:5])
+                if len(results['warnings']) > 5:
+                    warning_text += f"\n... ve {len(results['warnings']) - 5} uyarı daha"
+            
+            # Başarı mesajı
+            QMessageBox.information(
+                self,
+                "Başarılı",
+                f"✅ Sınav programı başarıyla oluşturuldu!\n\n"
+                f"📚 Ders sayısı: {len(results.get('schedule', []))}\n"
+                f"🏢 Kullanılan oda sayısı: {len(self.classrooms_data)}\n"
+                f"📝 Sınav türü: {self.exam_program.sinav_turu}\n"
+                f"⏱️ Varsayılan süre: {self.exam_program.varsayilan_sure} dk\n"
+                f"⚠️ Uyarı sayısı: {len(results.get('warnings', []))}"
+                f"{warning_text}"
+            )
+            
+            # Debug bilgisi
+            print("---- SINAV PROGRAMI SONUÇLARI ----")
+            print("Kalan Dersler:", self.exam_program.get_kalan_dersler())
+            print("Schedule:", results.get('schedule'))
+            print("Excel Path:", results.get('excel'))
+            
+            # Sonuçları emit et
+            self.program_created.emit(results)
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Hata", 
+                f"❌ Program oluşturulurken hata oluştu:\n{str(e)}\n\n"
+                f"Debug:\n"
+                f"- ExamProgram: {'✓' if self.exam_program else '✗'}\n"
+                f"- Classes: {'✓' if self.classes_and_their_students else '✗'}\n"
+                f"- Classrooms: {'✓' if self.classrooms_data else '✗'}"
+            )

@@ -11,7 +11,7 @@ from Backend.src.DataBase.src.structures.user import User
 from Backend.src.services.Utils.check_if_coordinator import require_coordinator
 from Backend.src.DataBase.src.utils.search_classroom import search_classroom as db_search_classroom
 from Backend.src.DataBase.src.utils.delete_classroom import delete_classroom as db_delete_classroom
-from Backend.src.DataBase.src.utils.get_all_classes import get_all_classes as db_get_all_classes
+from Backend.src.DataBase.src.utils.get_all_classrooms import get_all_classrooms 
 import io
 
 router = APIRouter(prefix="/department_coordinator", tags=["department_coordinator"])
@@ -170,15 +170,30 @@ def delete_classroom(classroom_code: str, user: User = Depends(require_coordinat
     
     return {"message": "Classroom deleted successfully.", 'status': status, 'detail': msg}
 
-@router.get("/all_classrooms")
-def all_classrooms(user: User = Depends(require_coordinator)):
+@router.get("/exam_classrooms")
+def exam_classrooms(user: User = Depends(require_coordinator)):
     try:
-        classrooms, status, msg = db_get_all_classes(user.department)
+        classrooms_list, status, msg = get_all_classrooms(user.department)
         
-        if status == 'error' and status != 'success':
-            return {"classes": [], "message": "Error while fetching classes.", 'status': status, 'detail': msg}
+        if status == 'error':
+            return {
+                "classrooms": [],
+                "message": "Error while fetching exam classrooms.",
+                'status': 'error',
+                'detail': msg
+            }
+        
+        return {
+            "classrooms": classrooms_list,
+            "message": "Exam classrooms fetched successfully.",
+            'status': 'success',
+            'detail': msg
+        }
         
     except Exception as e:
-        return {"classes": [], "message": "Error while fetching classes.", 'status': 'error', 'detail': str(e)}
-        
-    return {"classes": classrooms, "message": "Classes fetched successfully.", 'status': status, 'detail': msg}
+        return {
+            "classrooms": [],
+            "message": "Error while fetching exam classrooms.",
+            'status': 'error',
+            'detail': str(e)
+        }

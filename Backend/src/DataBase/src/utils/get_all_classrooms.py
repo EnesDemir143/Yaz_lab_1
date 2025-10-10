@@ -1,16 +1,17 @@
 from Backend.src.DataBase.src.Database_connection import get_database 
 import pymysql
 
-def get_all_classes(department: str) -> list[dict]:
+def get_all_classrooms(department: str) -> list[dict]:
     try:
         with get_database() as db:
             with db.cursor(pymysql.cursors.DictCursor) as cursor:
                 query = """
                 SELECT 
-                    class_id,
-                    class_name
-                FROM classes
-                WHERE department = %s;
+                    classroom_id,
+                    classroom_name,
+                    capacity,
+                FROM classrooms
+                WHERE department_name = %s;
                 """
                 cursor.execute(query, (department,))
                 classes = cursor.fetchall()
