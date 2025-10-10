@@ -8,7 +8,6 @@ from Frontend.src.Coordinator.Classroom.insert_classroom_page import InsertClass
 from Frontend.src.Coordinator.Classroom.search_classroom_page import SearchClassroomPage
 from Frontend.src.Coordinator.Classroom.delete_classroom_page import DeleteClassroomPage
 
-#TODO Buton çalışmıyor okey insert sonrasında.
 
 
 class ClassroomPage(QWidget):

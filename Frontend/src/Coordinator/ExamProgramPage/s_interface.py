@@ -462,27 +462,69 @@ class ExamProgramPage(QWidget):
 
 
     def handle_classes_and_students(self, response):
-        """Sınıf ve öğrenci verilerini işler."""
-        try:
-            if response.get("status") != "success":
-                QMessageBox.critical(
-                    self, "Hata",
-                    f"❌ Sınıf ve öğrenci bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}"
-                )
-                return
+            """Sınıf ve öğrenci verilerini işler ve NumPy tiplerinden arındırır."""
+            try:
+                if response.get("status") != "success":
+                    QMessageBox.critical(
+                        self, "Hata",
+                        f"❌ Sınıf ve öğrenci bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}"
+                    )
+                    return
 
-            self.classes_and_their_students = response.get("classes", {})
+                # ------------ YENİ TEMİZLEME KODU BAŞLANGICI ------------
+                raw_class_dict = response.get("classes", {})
+                clean_class_dict = {}
 
-            # ✅ Worker referansı kaybolmasın
-            self.get_classroom_worker = ClassroomRequests("exam_classrooms", user_info=self.user_info)
-            self.get_classroom_worker.finished.connect(self.handle_classroom_response)
-            self.get_classroom_worker.start()
+                if not isinstance(raw_class_dict, dict):
+                    QMessageBox.critical(self, "Veri Hatası", "Sunucudan beklenen formatta sınıf verisi gelmedi.")
+                    return
 
-        finally:
-            if hasattr(self, "get_class_and_student_worker"):
-                self.get_class_and_student_worker.quit()
-                self.get_class_and_student_worker.wait()
+                for class_id, class_info in raw_class_dict.items():
+                    if not isinstance(class_info, dict): 
+                        continue
 
+                    clean_info = {
+                        'class_name': str(class_info.get('class_name', '')),
+                        'students': []
+                    }
+                    
+                    students_list = class_info.get('students', [])
+                    if not isinstance(students_list, list):
+                        continue
+
+                    for student in students_list:
+                        if not isinstance(student, dict): 
+                            continue
+                        
+                        try:
+                            clean_student = {
+                                # Değerleri standart tiplere zorla dönüştür
+                                'student_num': int(student.get('student_num')),
+                                'name': str(student.get('name', '')),
+                                'surname': str(student.get('surname', ''))
+                            }
+                            clean_info['students'].append(clean_student)
+                        except (ValueError, TypeError):
+                            # Hatalı öğrenci verisini atla
+                            print(f"Uyarı: Hatalı öğrenci verisi atlandı: {student}")
+                            continue
+                    
+                    # class_id'yi de standart string yap
+                    clean_class_dict[str(class_id)] = clean_info
+                
+                self.classes_and_their_students = clean_class_dict
+                # ------------ YENİ TEMİZLEME KODU SONU ------------
+
+
+                # Artık temizlenmiş veriyle devam edebiliriz
+                self.get_classroom_worker = ClassroomRequests("exam_classrooms", user_info=self.user_info)
+                self.get_classroom_worker.finished.connect(self.handle_classroom_response)
+                self.get_classroom_worker.start()
+
+            finally:
+                if hasattr(self, "get_class_and_student_worker"):
+                    self.get_class_and_student_worker.quit()
+                    self.get_class_and_student_worker.wait()
 
     def handle_classroom_response(self, response):
         """Classroom verilerini işler ve sınav programını oluşturur."""
@@ -532,41 +574,34 @@ class ExamProgramPage(QWidget):
                 excel_output_path="sinav_programi.xlsx"
             )
             
-            # Uyarıları göster
-            warning_text = ""
-            if results.get('warnings'):
-                warning_text = "\n\n⚠️ Uyarılar:\n" + "\n".join(results['warnings'][:5])
-                if len(results['warnings']) > 5:
-                    warning_text += f"\n... ve {len(results['warnings']) - 5} uyarı daha"
+            if results.get("status") == "error":
+                error_msg = "\n".join(results.get("errors", []))
+                QMessageBox.critical(
+                    self, "Program Oluşturulamadı",
+                    f"❌ Sınav programı oluşturulamadı!\n\n{error_msg}"
+                )
+                return
             
-            # Başarı mesajı
+            # ⚠️ Uyarılarla başarılı
+            if results.get("status") == "warning":
+                warning_msg = "\n".join(results.get("warnings", [])[:3])
+                QMessageBox.warning(
+                    self, "Dikkat",
+                    f"⚠️ Program oluşturuldu ancak bazı sorunlar var:\n\n{warning_msg}"
+                )
+            
+            # ✅ Tamamen başarılı
+            stats = results.get("statistics", {})
             QMessageBox.information(
-                self,
-                "Başarılı",
+                self, "Başarılı",
                 f"✅ Sınav programı başarıyla oluşturuldu!\n\n"
-                f"📚 Ders sayısı: {len(results.get('schedule', []))}\n"
-                f"🏢 Kullanılan oda sayısı: {len(self.classrooms_data)}\n"
-                f"📝 Sınav türü: {self.exam_program.sinav_turu}\n"
-                f"⏱️ Varsayılan süre: {self.exam_program.varsayilan_sure} dk\n"
-                f"⚠️ Uyarı sayısı: {len(results.get('warnings', []))}"
-                f"{warning_text}"
+                f"📚 Toplam ders: {stats.get('total_courses')}\n"
+                f"✓ Yerleştirilen: {stats.get('placed_courses')}\n"
+                f"✗ Yerleştirilemeyen: {stats.get('unplaced_courses')}\n"
+                f"📅 Kullanılan gün: {stats.get('total_days')}"
             )
             
-            # Debug bilgisi
-            print("---- SINAV PROGRAMI SONUÇLARI ----")
-            print("Kalan Dersler:", self.exam_program.get_kalan_dersler())
-            print("Schedule:", results.get('schedule'))
-            print("Excel Path:", results.get('excel'))
-            
-            # Sonuçları emit et
             self.program_created.emit(results)
             
         except Exception as e:
-            QMessageBox.critical(
-                self, "Hata", 
-                f"❌ Program oluşturulurken hata oluştu:\n{str(e)}\n\n"
-                f"Debug:\n"
-                f"- ExamProgram: {'✓' if self.exam_program else '✗'}\n"
-                f"- Classes: {'✓' if self.classes_and_their_students else '✗'}\n"
-                f"- Classrooms: {'✓' if self.classrooms_data else '✗'}"
-            )
+            QMessageBox.critical(self, "Hata", f"❌ Beklenmeyen hata:\n{str(e)}")
