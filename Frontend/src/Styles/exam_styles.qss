@@ -1,0 +1,57 @@
+QWizard {
+    background-color: #121212;
+    color: #EAEAEA;
+    font-family: 'Segoe UI';
+    font-size: 13px;
+}
+
+QWizardPage {
+    background-color: #121212;
+}
+
+QLabel {
+    color: #EAEAEA;
+    font-size: 12px;
+}
+
+QLabel#sectionTitle {
+    color: #4FC3F7;
+    font-weight: bold;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+QLineEdit, QSpinBox, QComboBox, QDateEdit {
+    background-color: #1E1E1E;
+    color: #FFFFFF;
+    border: 1px solid #555;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+QCheckBox {
+    color: #EAEAEA;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid #4FC3F7;
+    background: transparent;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #4FC3F7;
+}
+
+QWizard QPushButton {
+    background-color: #4FC3F7;
+    color: white;
+    border-radius: 8px;
+    padding: 8px 14px;
+}
+
+QWizard QPushButton:hover {
+    background-color: #039BE5;
+}

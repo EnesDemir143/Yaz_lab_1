@@ -48,6 +48,7 @@ class CoordinatorDashboard(QWidget):
         self.later_menu_items = [
             "👨‍🎓 Öğrenci Listesi",
             "📖 Ders Listesi",
+            "Sınav Programı Oluştur",  
         ]
 
         for item_text in self.initial_menu_items:
@@ -89,7 +90,6 @@ class CoordinatorDashboard(QWidget):
         g_layout.addWidget(self.text_output)
         self.general_page.setLayout(g_layout)
         
-        # Pass dashboard reference to InsertClassroomPage and ClassroomPage
         self.insert_classroom_page = InsertClassroomPage(self.stack, self.user_info, self)
         self.classroom_management_system = ClassroomPage(self.stack, self.user_info, self)
         self.upload_classes_page = UploadClassList(self.user_info, self)
@@ -167,9 +167,9 @@ class CoordinatorDashboard(QWidget):
             item.setFlags(item.flags() | Qt.ItemIsEnabled)
             item.setForeground(Qt.white)
 
-        self.menu.setCurrentRow(4)
-        self.switch_page(4)
-        self.text_output.append("✅ Öğrenci yüklemesi tamamlandı, ek menüler eklendi ve tüm menüler aktif.\n")
+        self.menu.setCurrentRow(6)
+        self.switch_page(6)
+        self.text_output.append("✅ Öğrenci yüklemesi tamamlandı, ek menüler eklendi.\n")
 
             
     def on_first_classroom_added(self):

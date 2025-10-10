@@ -116,6 +116,23 @@ def all_classes(user: User = Depends(require_coordinator)):
         'status': 'success'
     }
     
+@router.get("/just_classes")
+def just_classes(user: User = Depends(require_coordinator)):
+    try:
+        classes_list, status, msg = class_list_menu(user.department)
+        
+        if status == 'error' and status != 'success':
+            return {"classes": [], "message": "Error while fetching classes.", 'status': status, 'detail': msg}
+        
+        unique_classes = {cls['class_id']: cls['class_name'] for cls in classes_list}
+        classes = [(cid, cname) for cid, cname in unique_classes.items()]
+        
+    except Exception as e:
+        return {"classes": [], "message": "Error while fetching classes.", 'status': 'error', 'detail': str(e)}
+        
+    return {"classes": classes, "message": "Classes fetched successfully.", 'status': status, 'detail': msg}
+    
+    
 @router.post("/insert_classroom")
 def insert_classroom(classroom: Classroom, user: User = Depends(require_coordinator)):
         status, msg = insert_classroom_to_db(classroom)

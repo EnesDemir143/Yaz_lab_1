@@ -7,12 +7,11 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QDate, Qt
 from Backend.src.utils.exams.algoritmalar import DersSecimi, SinavTarihleri, SinavTuru, SinavSuresi, BeklemeSuresi
 
-
-# ---------- 1. DERS SEÇİMİ SAYFASI ----------
 import requests
 from PyQt5.QtWidgets import QWizardPage, QVBoxLayout, QLabel, QCheckBox
 from PyQt5.QtCore import Qt
 from Backend.src.utils.exams.algoritmalar import DersSecimi
+from Frontend.src.Styles.load_qss import load_stylesheet
 
 API_URL = "http://127.0.0.1:8000/class-list/get_courses"  # exam_class_list.py içindeki endpoint
 
@@ -225,65 +224,7 @@ class SinavWizard(QWizard):
         self.setStyleSheet(self.load_dark_style())
 
     def load_dark_style(self):
-        return """
-        QWizard {
-            background-color: #121212;
-            color: #EAEAEA;
-            font-family: 'Segoe UI';
-            font-size: 13px;
-        }
-
-        QWizardPage {
-            background-color: #121212;
-        }
-
-        QLabel {
-            color: #EAEAEA;
-            font-size: 12px;
-        }
-
-        QLabel#sectionTitle {
-            color: #4FC3F7;
-            font-weight: bold;
-            margin-top: 10px;
-            font-size: 13px;
-        }
-
-        QLineEdit, QSpinBox, QComboBox, QDateEdit {
-            background-color: #1E1E1E;
-            color: #FFFFFF;
-            border: 1px solid #555;
-            border-radius: 6px;
-            padding: 4px;
-        }
-
-        QCheckBox {
-            color: #EAEAEA;
-        }
-
-        QCheckBox::indicator {
-            width: 16px;
-            height: 16px;
-            border-radius: 4px;
-            border: 1px solid #4FC3F7;
-            background: transparent;
-        }
-
-        QCheckBox::indicator:checked {
-            background-color: #4FC3F7;
-        }
-
-        QWizard QPushButton {
-            background-color: #4FC3F7;
-            color: white;
-            border-radius: 8px;
-            padding: 8px 14px;
-        }
-
-        QWizard QPushButton:hover {
-            background-color: #039BE5;
-        }
-        """
+        return load_stylesheet("Frontend/src/Styles/exam_styles.qss")
 
     def accept(self):
         # Butona basıldığında seçimleri yazdır
@@ -294,11 +235,3 @@ class SinavWizard(QWizard):
         print("Sınav Süresi:", self.page4.get_sure())
         print("Bekleme Süresi:", self.page5.get_bekleme())
         super().accept()
-
-
-# ---------- UYGULAMA ÇALIŞTIRMA ----------
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    wizard = SinavWizard()
-    wizard.show()
-    sys.exit(app.exec_())
