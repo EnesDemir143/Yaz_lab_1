@@ -8,13 +8,15 @@ from Frontend.src.Coordinator.Classroom.insert_classroom_page import InsertClass
 from Frontend.src.Coordinator.Classroom.search_classroom_page import SearchClassroomPage
 from Frontend.src.Coordinator.Classroom.delete_classroom_page import DeleteClassroomPage
 
+#TODO Buton çalışmıyor okey insert sonrasında.
+
 
 class ClassroomPage(QWidget):
     def __init__(self, parent_stack, user_info, dashboard=None):
         super().__init__()
         self.user_info = user_info
         self.parent_stack = parent_stack
-        self.dashboard = dashboard  # Reference to CoordinatorDashboard
+        self.dashboard = dashboard 
         self.init_ui()
 
     def init_ui(self):
@@ -53,9 +55,9 @@ class ClassroomPage(QWidget):
         if action_type == "insert":
             page = InsertClassroomPage(self.parent_stack, self.user_info, self.dashboard)
         elif action_type == "search":
-            page = SearchClassroomPage(self.parent_stack, self.user_info)
+            page = SearchClassroomPage(self.parent_stack, self.user_info, self.dashboard)
         else:
-            page = DeleteClassroomPage(self.parent_stack, self.user_info)
+            page = DeleteClassroomPage(self.parent_stack, self.user_info, self.dashboard)
 
         self.parent_stack.addWidget(page)
         self.parent_stack.setCurrentWidget(page)
@@ -63,4 +65,4 @@ class ClassroomPage(QWidget):
     def next_step_after_insertion(self):
         if self.dashboard:
             self.dashboard.enable_next_step_after_classroom()  
-            self.okey_btn.setVisible(False) 
+            self.okey_btn.setVisible(True) 

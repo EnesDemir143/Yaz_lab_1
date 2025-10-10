@@ -9,10 +9,11 @@ from Frontend.src.Styles.load_qss import load_stylesheet
 
 
 class SearchClassroomPage(QWidget):
-    def __init__(self, parent_stack, user_info):
+    def __init__(self, parent_stack, user_info, dashboard=None):
         super().__init__()
         self.user_info = user_info
         self.parent_stack = parent_stack
+        self.dashboard = dashboard
         self.visual_layout = None  # Görsel alanı saklayacağız
         self.init_ui()
 
@@ -54,7 +55,7 @@ class SearchClassroomPage(QWidget):
 
     def go_back(self):
         from Frontend.src.Coordinator.Classroom.clasroomPage import ClassroomPage
-        classroom_page = ClassroomPage(self.parent_stack, self.user_info)
+        classroom_page = ClassroomPage(self.parent_stack, self.user_info, self.dashboard)
         self.parent_stack.addWidget(classroom_page)
         self.parent_stack.setCurrentWidget(classroom_page)
 

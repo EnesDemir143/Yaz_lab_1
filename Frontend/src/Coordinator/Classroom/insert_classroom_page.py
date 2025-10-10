@@ -100,7 +100,7 @@ class InsertClassroomPage(QWidget):
     
     def go_back(self):
         from Frontend.src.Coordinator.Classroom.clasroomPage import ClassroomPage
-        classroom_page = ClassroomPage(self.parent_stack, self.user_info)
+        classroom_page = ClassroomPage(self.parent_stack, self.user_info, self.dashboard)
         self.parent_stack.addWidget(classroom_page)
         self.parent_stack.setCurrentWidget(classroom_page)
         
