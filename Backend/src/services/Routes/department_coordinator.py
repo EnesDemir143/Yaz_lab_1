@@ -11,7 +11,7 @@ from Backend.src.DataBase.src.structures.user import User
 from Backend.src.services.Utils.check_if_coordinator import require_coordinator
 from Backend.src.DataBase.src.utils.search_classroom import search_classroom as db_search_classroom
 from Backend.src.DataBase.src.utils.delete_classroom import delete_classroom as db_delete_classroom
-
+from Backend.src.DataBase.src.utils.get_all_classes import get_all_classes as db_get_all_classes
 import io
 
 router = APIRouter(prefix="/department_coordinator", tags=["department_coordinator"])
@@ -172,3 +172,13 @@ def delete_classroom(classroom_code: str, user: User = Depends(require_coordinat
 
 @router.get("/all_classrooms")
 def all_classrooms(user: User = Depends(require_coordinator)):
+    try:
+        classrooms, status, msg = db_get_all_classes(user.department)
+        
+        if status == 'error' and status != 'success':
+            return {"classes": [], "message": "Error while fetching classes.", 'status': status, 'detail': msg}
+        
+    except Exception as e:
+        return {"classes": [], "message": "Error while fetching classes.", 'status': 'error', 'detail': str(e)}
+        
+    return {"classes": classrooms, "message": "Classes fetched successfully.", 'status': status, 'detail': msg}
