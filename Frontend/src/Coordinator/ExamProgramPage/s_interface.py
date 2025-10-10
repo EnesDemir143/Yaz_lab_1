@@ -7,6 +7,8 @@ from PyQt5.QtCore import Qt, QDate, pyqtSignal
 from PyQt5.QtGui import QFont
 from Frontend.src.Coordinator.ExamProgramPage.exam_program_worker import GetClasses
 from Backend.src.utils.exams.ExanProgramClass import ExamProgram
+from Backend.src.utils.exams.create_exam_program import create_exam_schedule
+from Frontend.src.Coordinator.Classroom.classroomReqs import ClassroomRequests
 
 
 class ExamProgramPage(QWidget):
@@ -16,7 +18,7 @@ class ExamProgramPage(QWidget):
         super().__init__(parent)
         self.user_info = user_info
         self.dersler = []
-        self.excluded_courses = set()  # İşaretlenen, programa dahil edilmeyecek dersler
+        self.excluded_courses = set() 
         self.current_step = 1
         
         self.saved_start_date = None
@@ -450,8 +452,15 @@ class ExamProgramPage(QWidget):
             # Bekleme süresini ayarla
             exam_program.set_bekleme_suresi(self.saved_bekleme)
             
-            # Sonuçları al
-            results = exam_program.to_dict()
+            get_class_and_student_worker = GetClasses("all_classes", self.user_info)
+            get_class_and_student_worker.finished.connect(self.handle_classes_and_students)
+            get_class_and_student_worker.start()
+            
+            get_classroom_worker = ClassroomRequests("just_classes", user_info=self.user_info)
+            get_classroom_worker.finished.connect(self.handle_classroom_response)
+            get_classroom_worker.start()
+            
+            results = create_exam_schedule(exam_program, self.classes_and_their_students, self.classrooms_list)
             
             print("---- SINAV PROGRAMI SONUÇLARI ----")
             print("Kalan Dersler:", results["kalan_dersler"])
@@ -469,3 +478,26 @@ class ExamProgramPage(QWidget):
             
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"❌ Program oluşturulurken hata oluştu:\n{str(e)}")
+            
+    def handle_classes_and_students(self, response):
+        if response.get("status") != "success":
+            QMessageBox.critical(self, "Hata", f"❌ Sınıf ve öğrenci bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}, message: {response.get('message', '')}")
+            return
+        
+        self.classes_and_their_students = response.get("classes", {})
+        print("---- SINIF VE ÖĞRENCİ BİLGİLERİ ----")
+        for class_id, class_info in self.classes_and_their_students.items():
+            print(f"Sınıf: {class_info['class_name']} (ID: {class_id})")
+            for student in class_info['students']:
+                print(f" - {student['student_num']}: {student['name']} {student['surname']}")
+            break
+        
+    def handle_classroom_response(self, response):
+        if response.get("status") != "success":
+            QMessageBox.critical(self, "Hata", f"❌ Sınıf bilgileri alınamadı:\n{response.get('detail', 'Bilinmeyen hata')}, message: {response.get('message', '')}")
+            return
+        
+        self.classrooms_list = response.get("classes", [])
+        print("---- SINIF BİLGİLERİ ----")
+        for classroom in self.classrooms_list:
+            print(f"Sınıf: {classroom[1]} (ID: {classroom[0]})")

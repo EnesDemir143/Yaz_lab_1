@@ -113,7 +113,8 @@ def all_classes(user: User = Depends(require_coordinator)):
     return {
         'classes': class_dict,
         "message": "Classes fetched successfully.",
-        'status': 'success'
+        'status': 'success',
+        'detail': msg
     }
     
 @router.get("/just_classes")
@@ -168,3 +169,6 @@ def delete_classroom(classroom_code: str, user: User = Depends(require_coordinat
         return {"message": "Error while deleting classroom.", 'status': status, 'detail': msg}
     
     return {"message": "Classroom deleted successfully.", 'status': status, 'detail': msg}
+
+@router.get("/all_classrooms")
+def all_classrooms(user: User = Depends(require_coordinator)):

@@ -6,7 +6,7 @@ API_BASE = "http://127.0.0.1:8000/department_coordinator"
 class ClassroomRequests(QThread):
     finished = pyqtSignal(dict)
 
-    def __init__(self, endpoint: str, data: dict, user_info: dict):
+    def __init__(self, endpoint: str, data: dict = None, user_info: dict = None):
         super().__init__()
         self.endpoint = endpoint
         self.user_info = user_info
@@ -21,6 +21,8 @@ class ClassroomRequests(QThread):
                 resp = requests.post(url, json=self.data, headers=headers, timeout=30)
             elif self.endpoint in ["search_classroom", "delete_classroom"]:
                 resp = requests.post(url, params=self.data, headers=headers, timeout=30)
+            elif self.endpoint == "just_classes":
+                resp = requests.get(url, headers=headers, timeout=30)
             else:
                 print("Invalid endpoint")
                 raise ValueError("Invalid endpoint")
