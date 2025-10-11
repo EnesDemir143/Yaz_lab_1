@@ -135,33 +135,51 @@ def just_classes(user: User = Depends(require_coordinator)):
 
 @router.get("/classes_with_years")
 def classes_with_years(user: User = Depends(require_coordinator)):
+    class_dict = {}
+
     try:
-        classes_list, status, msg = class_list_menu(user.department)
-        
-        if status == 'error' and status != 'success':
-            return {"classes": [], "message": "Error while fetching classes.", 'status': status, 'detail': msg}
-        
-        unique_classes = {}
+        classes_list, status, msg = class_list_menu(user.department, years=True)
+
+        if status == 'error':
+            return {
+                'classes': {},
+                "message": "Error while fetching classes.",
+                'status': 'error',
+                'detail': msg
+            }
+
         for cls in classes_list:
-            cid = cls['class_id']
-            if cid not in unique_classes:
-                unique_classes[cid] = {
+            class_id = cls['class_id']
+
+            if class_id not in class_dict:
+                class_dict[class_id] = {
+                    'class_id': class_id,
                     'class_name': cls['class_name'],
-                    'years': set()
+                    'year': cls.get('year', []),
+                    'students': []
                 }
-            if cls.get('year') is not None:
-                unique_classes[cid]['years'].add(cls['year'])
-        
-        classes = [(cid, info['class_name'], sorted(info['years'])) for cid, info in unique_classes.items()]
-        print("Classes with years")
-        for cls in classes:
-            print("class_id:", cls[0], "class_name:", cls[1], "years:", cls[2])
-        
+
+            if cls['student_num']:
+                class_dict[class_id]['students'].append({
+                    'student_num': cls['student_num'],
+                    'name': cls['name'],
+                    'surname': cls['surname']
+                })
+
     except Exception as e:
-        return {"classes": [], "message": "Error while fetching classes.", 'status': 'error', 'detail': str(e)}
-        
-    return {"classes": classes, "message": "Classes fetched successfully.", 'status': status, 'detail': msg}
-    
+        return {
+            'classes': class_dict,
+            "message": "Error while fetching classes.",
+            'status': 'error',
+            'detail': str(e)
+        }
+
+    return {
+        'classes': class_dict,
+        "message": "Classes fetched successfully.",
+        'status': 'success',
+        'detail': msg
+    }
     
 @router.post("/insert_classroom")
 def insert_classroom(classroom: Classroom, user: User = Depends(require_coordinator)):

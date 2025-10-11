@@ -7,8 +7,12 @@ class ExamProgram:
         self.haris_gunler = []
         self.sinav_turu = None
         self.varsayilan_sure = 75
-        self.istisna_dersler = {}  # {ders_adi: sure}
+        self.istisna_dersler = {}  
         self.bekleme_suresi = 15
+        self.exam_conflict = False
+        
+    def set_exam_conflict(self, conflict: bool):
+        self.exam_conflict = conflict
     
     def set_dersler(self, dersler):
         self.dersler = dersler

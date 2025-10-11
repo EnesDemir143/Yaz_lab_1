@@ -13,7 +13,7 @@ def get_all_classrooms(department: str) -> list[dict]:
                 FROM classrooms
                 WHERE department_name = %s;
                 """
-                cursor.execute(query, (department,))
+                cursor.execute(query, (department.strip(),))
                 classrooms = cursor.fetchall()
     except Exception as e:
         print(f"Error while fetching all classes: {e}")

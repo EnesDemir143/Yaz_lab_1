@@ -2,13 +2,11 @@ from collections import defaultdict
 import math
 import datetime
 import os
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Set
 import pandas as pd
 from .ExanProgramClass import ExamProgram
 import numpy as np
 from itertools import combinations
-
-#TODO : Sınıfların hangi yıla ait olduğunu bilmek lazım. Onları da ekleyip öyle yapıcam devamını
 
 def _safe_to_str(val):
     """Excel'e yazılabilir güvenli dönüştürme"""
@@ -24,17 +22,56 @@ def _safe_to_str(val):
 
 def _has_student_conflict(
     course_id: str, slot_idx: int, course_student_map: Dict[str, set],
-    student_assigned_slots: Dict[str, set], bekleme_slots: int
+    student_assigned_slots: Dict[str, set]
 ) -> bool:
+    """Öğrenci çakışması kontrolü - aynı slotta çakışma var mı? (HER ZAMAN AKTİF)"""
     students = course_student_map.get(course_id, set())
     for sid in students:
-        if slot_idx in student_assigned_slots.get(sid, set()):  # Sadece aynı slotu kontrol et
+        if slot_idx in student_assigned_slots.get(sid, set()):
             return True
+    return False
+
+def _has_same_year_conflict(
+    course_year: str, slot_idx: int, day: str,
+    day_year_courses: Dict[Tuple[str, str], List[str]]
+) -> bool:
+    """Aynı sınıfın başka bir dersi bu günde var mı kontrolü (HER ZAMAN AKTİF)"""
+    return len(day_year_courses.get((day, course_year), [])) > 0
+
+def _has_cross_year_conflict(
+    course_id: str, slot_idx: int, 
+    slot_assigned_courses: Dict[int, List[Dict]],
+    exam_conflict: bool
+) -> bool:
+    """Farklı sınıflardan dersler aynı slotta olabilir mi kontrolü"""
+    if exam_conflict:
+        # exam_conflict=True ise farklı sınıfların dersleri aynı anda olabilir
+        return False
+    else:
+        # exam_conflict=False ise hiçbir ders aynı anda olamaz
+        return slot_idx in slot_assigned_courses and len(slot_assigned_courses[slot_idx]) > 0
+
+def _has_waiting_time_conflict(
+    course_id: str, slot_idx: int, course_student_map: Dict[str, set],
+    student_assigned_slots: Dict[str, set], bekleme_slots: int
+) -> bool:
+    """Bekleme süresi çakışması kontrolü"""
+    students = course_student_map.get(course_id, set())
+    for sid in students:
+        student_slots = student_assigned_slots.get(sid, set())
+        # Bekleme süresi kadar önceki ve sonraki slotları kontrol et
+        for offset in range(-bekleme_slots, bekleme_slots + 1):
+            if offset == 0:
+                continue
+            check_slot = slot_idx + offset
+            if check_slot in student_slots:
+                return True
     return False
 
 def _find_available_room_combo(
     combos: List[List[Dict]], slot_idx: int, slot_room_usage: Dict[int, set]
 ) -> List[Dict]:
+    """Kullanılabilir oda kombinasyonu bul"""
     occupied = slot_room_usage.get(slot_idx, set())
     for combo in combos:
         combo_ids = {r["id"] for r in combo}
@@ -46,13 +83,15 @@ def _place_course(
     course: Dict, day: str, global_slot_idx: int, slot_in_day: int,
     start_time: str, end_time: str, combo: List[Dict], assignments: List[Dict],
     student_assigned_slots: Dict[str, set], slot_room_usage: Dict[int, set],
-    course_student_map: Dict[str, set], check_conflicts: bool
+    course_student_map: Dict[str, set]
 ):
+    """Dersi programa yerleştir"""
     cid = course["id"]
     
     assignments.append({
         "course_id": cid,
         "course_name": course["name"],
+        "course_year": course.get("year", ""),
         "day": day,
         "slot_index": global_slot_idx,
         "slot_in_day": slot_in_day,
@@ -64,14 +103,15 @@ def _place_course(
         "duration_minutes": int(course["duration_minutes"]),
     })
     
-    if check_conflicts:
-        for sid in course_student_map.get(cid, set()):
-            student_assigned_slots[sid].add(global_slot_idx)
+    # Öğrencilerin slotlarını işaretle
+    for sid in course_student_map.get(cid, set()):
+        student_assigned_slots[sid].add(global_slot_idx)
     
+    # Odaları işaretle
     for r in combo:
         slot_room_usage[global_slot_idx].add(r["id"])
 
-def _schedule_exams_with_mode(
+def _schedule_exams_optimized(
     active_courses: List[Dict],
     course_student_map: Dict[str, set],
     student_course_map: Dict[str, set],
@@ -79,110 +119,187 @@ def _schedule_exams_with_mode(
     slot_list: List[Tuple[str, int, str, str]],
     bekleme_suresi: int,
     exam_program: ExamProgram,
-    mode: str = "compact"
 ) -> Tuple[List[Dict], List[str]]:
+    """Optimize edilmiş sınav yerleştirme algoritması"""
     assignments: List[Dict] = []
     warnings: List[str] = []
     
     student_assigned_slots: Dict[str, set] = defaultdict(set)
     slot_room_usage: Dict[int, set] = defaultdict(set)
-    check_conflicts = getattr(exam_program, "exam_conflict", False)  # Çakışma kontrolü kapalı
-
-    # Dersleri öğrenci sayısına göre sırala (büyükten küçüğe)
-    sorted_courses = sorted(active_courses, key=lambda c: -int(c.get("expected_students", 0)))
+    day_year_courses: Dict[Tuple[str, str], List[str]] = defaultdict(list)  # (gün, yıl) -> ders listesi
+    slot_assigned_courses: Dict[int, List[Dict]] = defaultdict(list)  # slot -> dersler
     
-    print(f"\n⚡ KOMPAKT MOD - {len(sorted_courses)} ders aynı slotta maksimum yerleştiriliyor...")
+    # exam_conflict durumunu kontrol et
+    check_cross_year = getattr(exam_program, "exam_conflict", False)
     
-    # Her slot için uygun dersleri yerleştir
-    for global_slot_idx, (day, slot_in_day, start_time, end_time) in enumerate(slot_list):
-        # Bu slot için uygun dersleri bul
-        available_courses = [
-            course for course in sorted_courses
-            if course["id"] not in {a["course_id"] for a in assignments}
-        ]
-        placed_in_slot = 0
+    # Bekleme süresi slot sayısına çevir
+    slot_duration = int(exam_program.varsayilan_sure or 75)
+    bekleme_slots = max(1, math.ceil(int(bekleme_suresi or 0) / slot_duration))
+    
+    print(f"\n🎯 OPTİMİZE YERLEŞTIRME BAŞLIYOR")
+    print(f"   • Toplam Ders: {len(active_courses)}")
+    print(f"   • Toplam Slot: {len(slot_list)}")
+    print(f"   • Bekleme Süresi: {bekleme_suresi} dk ({bekleme_slots} slot)")
+    print(f"   • Sınıflar Arası Aynı Anda: {'✅ İzin Verilir' if check_cross_year else '❌ İzin Verilmez'}")
+    print(f"   • Öğrenci Çakışma Kontrolü: ✅ Her Zaman Aktif")
+    print(f"   • Aynı Sınıf Farklı Gün: ✅ Her Zaman Aktif")
+    
+    # Dersleri yıl ve öğrenci sayısına göre grupla
+    courses_by_year = defaultdict(list)
+    for course in active_courses:
+        year = course.get("year", "Bilinmeyen")
+        courses_by_year[year].append(course)
+    
+    # Her yılın derslerini öğrenci sayısına göre sırala (büyükten küçüğe)
+    for year in courses_by_year:
+        courses_by_year[year].sort(key=lambda c: -int(c.get("expected_students", 0)))
+    
+    # Günleri eşit dağıtmak için
+    days_list = sorted(set(day for day, _, _, _ in slot_list))
+    total_days = len(days_list)
+    
+    print(f"\n📅 Yıl Bazlı Ders Dağılımı:")
+    for year, courses in courses_by_year.items():
+        print(f"   • {year}: {len(courses)} ders")
+    
+    # Her yılın derslerini günlere dağıt
+    # ÖNCELİKLE: Her yıl için günleri belirle (bir yıl = bir gün)
+    year_to_days: Dict[str, List[str]] = {}
+    days_list = sorted(set(day for day, _, _, _ in slot_list))
+    
+    for idx, (year, courses) in enumerate(courses_by_year.items()):
+        # Her yıla farklı günler ata (döngüsel olarak)
+        year_days = []
+        course_count = len(courses)
         
-        # Aynı slotta mümkün olduğunca çok ders yerleştir
-        for course in available_courses:
+        # Kaç gün gerekli?
+        days_needed = course_count  # Her ders bir gün
+        
+        # Günleri döngüsel olarak ata
+        for i in range(days_needed):
+            day_idx = (idx + i) % len(days_list)
+            year_days.append(days_list[day_idx])
+        
+        year_to_days[year] = year_days
+    
+    print(f"\n📅 Sınıf-Gün Atamaları:")
+    for year, days in year_to_days.items():
+        print(f"   • {year}: {len(days)} gün ({', '.join(days[:3])}...)" if len(days) > 3 else f"   • {year}: {len(days)} gün")
+    
+    # Şimdi her yılın derslerini atanan günlere yerleştir
+    for year, courses in courses_by_year.items():
+        print(f"\n🎓 {year} dersleri yerleştiriliyor ({len(courses)} ders)...")
+        assigned_days = year_to_days.get(year, [])
+        day_idx = 0
+        
+        for course_idx, course in enumerate(courses):
             cid = course["id"]
+            course_year = course.get("year", "Bilinmeyen")
             combos = suitable_rooms.get(cid, [])
+            
             if not combos:
-                warnings.append(f"❌ '{course['name']}' için uygun oda yok")
+                warnings.append(f"⚠️ '{course['name']}' için uygun oda kombinasyonu yok")
                 continue
             
-            # Çakışma kontrolü
-            slot_duration = int(exam_program.varsayilan_sure or 75)
-            bekleme_slots = max(1, math.ceil(int(bekleme_suresi or 0) / slot_duration))
-            if check_conflicts and _has_student_conflict(
-                cid, global_slot_idx, course_student_map, student_assigned_slots, bekleme_slots
-            ):
-                continue
+            placed = False
+            attempts = 0
+            max_attempts = len(slot_list) * 2
             
-            # Uygun oda kombinasyonu bul
-            combo = _find_available_room_combo(combos, global_slot_idx, slot_room_usage)
-            if not combo:
-                continue
+            # Bu dersi sırayla günlere dene
+            for attempt_offset in range(len(assigned_days)):
+                if placed:
+                    break
+                
+                target_day_idx = (day_idx + attempt_offset) % len(assigned_days)
+                target_day = assigned_days[target_day_idx]
+                
+                # KURAL 1: Aynı sınıfın dersi bu günde var mı? (HER ZAMAN KONTROL)
+                if _has_same_year_conflict(course_year, 0, target_day, day_year_courses):
+                    continue
+                    
+                # Bu gündeki slotları dene
+                day_slots = [
+                    (idx, day, slot_in_day, start, end) 
+                    for idx, (day, slot_in_day, start, end) in enumerate(slot_list)
+                    if day == target_day
+                ]
+                
+                for global_slot_idx, day, slot_in_day, start_time, end_time in day_slots:
+                    attempts += 1
+                    if attempts > max_attempts:
+                        break
+                    
+                    # KURAL 2: Öğrenci çakışması kontrolü (HER ZAMAN AKTİF)
+                    if _has_student_conflict(
+                        cid, global_slot_idx, course_student_map, student_assigned_slots
+                    ):
+                        continue
+                    
+                    # KURAL 3: Bekleme süresi kontrolü (HER ZAMAN AKTİF)
+                    if _has_waiting_time_conflict(
+                        cid, global_slot_idx, course_student_map, 
+                        student_assigned_slots, bekleme_slots
+                    ):
+                        continue
+                    
+                    # KURAL 4: Farklı sınıflar aynı anda olabilir mi? (exam_conflict'e göre)
+                    if _has_cross_year_conflict(
+                        cid, global_slot_idx, slot_assigned_courses, check_cross_year
+                    ):
+                        continue
+                    
+                    # KURAL 5: Oda uygunluğu kontrolü
+                    combo = _find_available_room_combo(combos, global_slot_idx, slot_room_usage)
+                    if not combo:
+                        continue
+                    
+                    # Dersi yerleştir
+                    _place_course(
+                        course, day, global_slot_idx, slot_in_day, start_time, end_time,
+                        combo, assignments, student_assigned_slots, slot_room_usage,
+                        course_student_map
+                    )
+                    
+                    day_year_courses[(day, course_year)].append(cid)
+                    slot_assigned_courses[global_slot_idx].append(course)
+                    placed = True
+                    
+                    # Slot doluluk oranını hesapla
+                    slot_courses = slot_assigned_courses[global_slot_idx]
+                    slot_years = set(c.get('year', 'N/A') for c in slot_courses)
+                    
+                    print(f"   ✓ {course['name']} ({course_year}) → {day} {start_time}-{end_time} ({combo[0]['name']}) "
+                          f"[Slot: {len(slot_courses)} ders, {len(slot_years)} sınıf]")
+                    break
             
-            # Dersi yerleştir
-            _place_course(
-                course, day, global_slot_idx, slot_in_day, start_time, end_time,
-                combo, assignments, student_assigned_slots, slot_room_usage,
-                course_student_map, check_conflicts
-            )
-            placed_in_slot += 1
-        
-        if placed_in_slot > 0:
-            print(f"   ✓ Slot {global_slot_idx} ({day} {start_time}-{end_time}): {placed_in_slot} ders yerleştirildi")
+            if placed:
+                day_idx += 1  # Sonraki ders için sonraki güne geç
+            
+            if not placed:
+                warnings.append(
+                    f"❌ '{course['name']}' yerleştirilemedi "
+                    f"(Öğrenci: {course['expected_students']}, Sınıf: {course_year})"
+                )
     
-    # Yerleştirilemeyen dersleri raporla
-    placed_course_ids = {a["course_id"] for a in assignments}
-    unplaced = [c for c in sorted_courses if c["id"] not in placed_course_ids]
-    for course in unplaced:
-        warnings.append(f"❌ '{course['name']}' yerleştirilemedi (kompakt mod)")
-    
-    print(f"   ✅ Toplam {len(assignments)}/{len(sorted_courses)} ders yerleştirildi")
-    return assignments, warnings
-
-def _adaptive_schedule_exams(
-    active_courses: List[Dict],
-    course_student_map: Dict[str, set],
-    student_course_map: Dict[str, set],
-    suitable_rooms: Dict[str, List[List[Dict]]],
-    slot_list: List[Tuple[str, int, str, str]],
-    bekleme_suresi: int,
-    exam_program: ExamProgram,
-) -> Tuple[List[Dict], List[str]]:
-    warnings: List[str] = []
-    
-    # Kapasite analizi
-    total_courses = len(active_courses)
-    total_slots = len(slot_list)
-    total_rooms = len(set(r["id"] for combos in suitable_rooms.values() for combo in combos for r in combo))
-    
-    print(f"\n📊 Kapasite Analizi:")
-    print(f"   • Toplam Ders: {total_courses}")
-    print(f"   • Toplam Slot: {total_slots}")
-    print(f"   • Toplam Oda: {total_rooms}")
-    
-    # Direkt kompakt moda geç
-    print("⚡ KOMPAKT MOD AKTİF - Aynı slotta maksimum sınav yerleştiriliyor")
-    assignments, schedule_warnings = _schedule_exams_with_mode(
-        active_courses=active_courses,
-        course_student_map=course_student_map,
-        student_course_map=student_course_map,
-        suitable_rooms=suitable_rooms,
-        slot_list=slot_list,
-        bekleme_suresi=bekleme_suresi,
-        exam_program=exam_program,
-        mode="compact"
-    )
-    
-    warnings.extend(schedule_warnings)
-    
+    # İstatistikler
     placed_count = len(assignments)
-    success_rate = (placed_count / total_courses * 100) if total_courses > 0 else 0
-    print(f"\n📈 Yerleştirme Sonucu:")
-    print(f"   • Yerleştirilen: {placed_count}/{total_courses} (%{success_rate:.1f})")
+    success_rate = (placed_count / len(active_courses) * 100) if active_courses else 0
+    
+    print(f"\n📊 YERLEŞTIRME SONUÇLARI:")
+    print(f"   • Yerleştirilen: {placed_count}/{len(active_courses)} (%{success_rate:.1f})")
+    print(f"   • Yerleştirilemeyen: {len(active_courses) - placed_count}")
+    
+    # Gün bazlı yıl dağılım istatistiği
+    print(f"\n📈 Gün Bazlı Sınıf Dağılımı:")
+    days_list = sorted(set(day for day, _, _, _ in slot_list))
+    for day in days_list:
+        day_stats = []
+        for year in courses_by_year.keys():
+            courses_in_day = day_year_courses.get((day, year), [])
+            if courses_in_day:
+                day_stats.append(f"{year}: {len(courses_in_day)} ders")
+        if day_stats:
+            print(f"   • {day}: {', '.join(day_stats)}")
     
     return assignments, warnings
 
@@ -210,7 +327,7 @@ def create_exam_schedule(
     # 2) Slot oluşturma
     start_hour = 10
     end_hour = 20
-    slot_duration_hours = 2
+    slot_duration_hours = exam_program.bekleme_suresi // 60 + (exam_program.varsayilan_sure or 75) // 60
     slot_list: List[Tuple[str, int, str, str]] = []
 
     for d in days:
@@ -242,30 +359,24 @@ def create_exam_schedule(
     student_course_map = _build_student_course_map(students_data)
     course_student_map = _build_course_student_map(students_data)
 
-    # 6) Oda uygunluk kontrolü
+    # 6) Oda uygunluk kontrolü (DÜZELTİLDİ)
     suitable_rooms, room_errors = _check_room_suitability_v3(active_courses, rooms_data)
     warnings.extend(room_errors)
 
-    # 7) Kapasite kontrolü
+    # 7) Kapasite kontrolü (DÜZELTİLDİ - artık tüm odaların toplamını kontrol ediyor)
     capacity_errors = _validate_capacity_requirements(active_courses, rooms_data)
     if capacity_errors:
-        critical_errors.extend(capacity_errors)
-        return {
-            "status": "error",
-            "schedule": [],
-            "warnings": warnings,
-            "errors": critical_errors,
-            "excel": None
-        }
+        # Kapasite hatası varsa warning olarak ekle, ama devam et
+        warnings.extend(capacity_errors)
 
-    # 8) ADAPTİF YERLEŞTİRME
-    assignments, placement_warnings = _adaptive_schedule_exams(
+    # 8) OPTİMİZE YERLEŞTİRME
+    assignments, placement_warnings = _schedule_exams_optimized(
         active_courses=active_courses,
         course_student_map=course_student_map,
         student_course_map=student_course_map,
         suitable_rooms=suitable_rooms,
         slot_list=slot_list,
-        bekleme_suresi=0,  # Bekleme süresini sıfırla
+        bekleme_suresi=exam_program.bekleme_suresi,
         exam_program=exam_program,
     )
     warnings.extend(placement_warnings)
@@ -275,10 +386,11 @@ def create_exam_schedule(
     unplaced = [c for c in active_courses if c["id"] not in placed_course_ids]
     
     if unplaced:
-        critical_errors.append(f"❌ KRİTİK: {len(unplaced)} ders yerleştirilemedi!")
+        warnings.append(f"⚠️ {len(unplaced)} ders yerleştirilemedi!")
         for course in unplaced[:5]:
-            critical_errors.append(
+            warnings.append(
                 f"   • {course['name']} (Öğrenci: {course['expected_students']}, "
+                f"Yıl: {course.get('year', 'N/A')}, "
                 f"Süre: {course['duration_minutes']} dk)"
             )
 
@@ -318,7 +430,11 @@ def _convert_class_dict_to_courses_and_students(
         class_name = class_info["class_name"]
 
         if class_name in kalan_dersler:
-            courses_data.append({"id": class_id, "name": class_name})
+            courses_data.append({
+                "id": class_id, 
+                "name": class_name, 
+                "year": class_info.get('year', 'Bilinmeyen'),
+            })
 
             for student in class_info.get("students", []):
                 student_num = student.get("student_num")
@@ -419,6 +535,7 @@ def _build_course_student_map(students_data: List[Dict]) -> Dict[str, set]:
 def _check_room_suitability_v3(
     courses: List[Dict], rooms: List[Dict]
 ) -> Tuple[Dict[str, List[List[Dict]]], List[str]]:
+    """Her ders için uygun oda kombinasyonlarını bul"""
     suitable_rooms: Dict[str, List[List[Dict]]] = {}
     errors: List[str] = []
     
@@ -426,9 +543,17 @@ def _check_room_suitability_v3(
         errors.append("❌ KRİTİK: Hiç derslik tanımlanmamış!")
         return {}, errors
 
+    # Odaları kapasiteye göre sırala
     sorted_rooms = sorted(rooms, key=lambda x: int(x.get("capacity", 0) or 0))
-    all_caps = [int(r.get("capacity", 0) or 0) for r in sorted_rooms]
-    max_cap = max(all_caps) if all_caps else 0
+    
+    # Toplam kapasite hesapla
+    total_capacity = sum(int(r.get("capacity", 0) or 0) for r in rooms)
+    max_single_room = max((int(r.get("capacity", 0) or 0) for r in rooms), default=0)
+
+    print(f"\n🏫 ODA BİLGİLERİ:")
+    print(f"   • Toplam Oda: {len(rooms)}")
+    print(f"   • Toplam Kapasite: {total_capacity}")
+    print(f"   • En Büyük Oda: {max_single_room}")
 
     for course in courses:
         need = int(course["expected_students"])
@@ -436,37 +561,50 @@ def _check_room_suitability_v3(
 
         if not combos:
             errors.append(
-                f"⚠️ UYARI: '{course['name']}' için oda yok (İhtiyaç: {need}, Maks: {max_cap})"
+                f"⚠️ UYARI: '{course['name']}' için yeterli oda yok "
+                f"(İhtiyaç: {need}, Maks Tek Oda: {max_single_room})"
             )
-            combos = [sorted_rooms[-1:]] if sorted_rooms else []
+            # En büyük odayı ata (yetersiz olsa bile)
+            if sorted_rooms:
+                combos = [sorted_rooms[-1:]]
 
         suitable_rooms[course["id"]] = combos
 
     return suitable_rooms, errors
 
 def _find_room_combinations(rooms: List[Dict], need: int, max_combo: int = 3) -> List[List[Dict]]:
+    """Gerekli kapasiteyi karşılayan oda kombinasyonlarını bul"""
     valid = []
-    for r in range(1, max_combo + 1):
+    
+    # 1, 2, 3 odalı kombinasyonları dene
+    for r in range(1, min(max_combo + 1, len(rooms) + 1)):
         for combo in combinations(rooms, r):
             total = sum(int(c.get("capacity", 0) or 0) for c in combo)
             if total >= need:
                 valid.append(list(combo))
+    
+    # En küçük toplam kapasiteli kombinasyonu önce kullan
     valid.sort(key=lambda c: sum(int(x.get("capacity", 0) or 0) for x in c))
     return valid
 
 def _validate_capacity_requirements(courses: List[Dict], rooms: List[Dict]) -> List[str]:
+    """Kapasite gereksinimlerini kontrol et"""
     errors: List[str] = []
     
     if not rooms:
         errors.append("❌ KRİTİK: Hiç derslik tanımlanmamış!")
         return errors
     
+    # Tüm odaların TOPLAM kapasitesini hesapla
     total_room_capacity = sum(int(r.get("capacity", 0) or 0) for r in rooms)
     max_course_students = max((int(c["expected_students"]) for c in courses), default=0)
     
+    # En büyük dersin kapasitesi, tüm odaların toplamından fazla mı?
     if max_course_students > total_room_capacity:
         errors.append(
-            f"❌ KRİTİK: En büyük ders ({max_course_students} öğr.) > Toplam kapasite ({total_room_capacity})"
+            f"⚠️ UYARI: En büyük ders ({max_course_students} öğr.) > "
+            f"Toplam tüm odalar ({total_room_capacity}). "
+            f"Bu ders için birden fazla oda kullanılacak."
         )
     
     return errors
@@ -483,8 +621,10 @@ def _create_schedule_summary(assignments: List[Dict]) -> List[Dict]:
         summary.append({
             "course_id": _safe_to_str(first["course_id"]),
             "course_name": _safe_to_str(first["course_name"]),
+            "course_year": _safe_to_str(first.get("course_year", "")),
             "day": _safe_to_str(first["day"]),
             "slot_in_day": int(first["slot_in_day"]),
+            "start_time": _safe_to_str(first.get("start_time", "")),
             "room_name": _safe_to_str(first.get("room_name", "")),
             "expected_students": int(first["expected_students"]),
             "duration_minutes": int(first["duration_minutes"]),
@@ -509,8 +649,8 @@ def _write_excel_output(
 
     try:
         columns = [
-            "course_id", "course_name", "day", "slot_in_day",
-            "room_name", "expected_students", "duration_minutes"
+            "course_id", "course_name", "course_year", "day", "slot_in_day",
+            "start_time", "room_name", "expected_students", "duration_minutes"
         ]
         
         data_as_list = []
@@ -523,20 +663,23 @@ def _write_excel_output(
         column_rename = {
             "course_id": "Ders ID",
             "course_name": "Ders Adı",
+            "course_year": "Sınıf",
             "day": "Tarih",
             "slot_in_day": "Seans",
+            "start_time": "Başlangıç Saati",
             "room_name": "Oda",
             "expected_students": "Öğrenci Sayısı",
             "duration_minutes": "Süre (dk)"
         }
         df_schedule = df_schedule.rename(columns=column_rename)
         
-        desired_columns = ["Ders ID", "Ders Adı", "Tarih", "Seans", "Oda", "Öğrenci Sayısı", "Süre (dk)"]
+        desired_columns = ["Ders ID", "Ders Adı", "Sınıf", "Tarih", "Seans", "Başlangıç Saati", "Oda", "Öğrenci Sayısı", "Süre (dk)"]
         for col in desired_columns:
             if col not in df_schedule.columns:
                 df_schedule[col] = None
         df_schedule = df_schedule[desired_columns]
 
+        # Oda bazlı görünüm
         slot_names = ["10:00-12:00", "12:00-14:00", "14:00-16:00", "16:00-18:00", "18:00-20:00"]
         room_data = []
         for a in assignments:
@@ -548,14 +691,16 @@ def _write_excel_output(
                     _safe_to_str(a.get("day", "")),
                     s_name,
                     _safe_to_str(a.get("course_name", "")),
+                    _safe_to_str(a.get("course_year", "")),
                     int(a.get("expected_students", 0)),
                     f"{int(a.get('duration_minutes', 0))} dk",
                 ])
             except Exception:
                 continue
         
-        df_room = pd.DataFrame(room_data, columns=["Oda", "Gün", "Seans", "Ders", "Öğrenci", "Süre"])
+        df_room = pd.DataFrame(room_data, columns=["Oda", "Gün", "Seans", "Ders", "Sınıf", "Öğrenci", "Süre"])
 
+        # Program bilgileri
         istisna_text = "Yok"
         if getattr(exam_program, "istisna_dersler", None):
             istisna_list = [f"{d}: {s} dk" for d, s in exam_program.istisna_dersler.items()]
@@ -569,7 +714,7 @@ def _write_excel_output(
             ["Varsayılan Süre", f"{int(exam_program.varsayilan_sure)} dk"],
             ["İstisna Dersler", istisna_text],
             ["Bekleme Süresi", f"{int(exam_program.bekleme_suresi)} dk"],
-            ["Çakışma Kontrolü", "Aktif" if getattr(exam_program, "exam_conflict", True) else "Pasif"],
+            ["Farklı Sınıflar Aynı Anda", "İzin Verilir" if getattr(exam_program, "exam_conflict", False) else "İzin Verilmez"],
             ["Toplam Ders", str(len(schedule_summary))],
             ["Hariç Dersler", ", ".join(map(str, exam_program.excluded_courses)) if exam_program.excluded_courses else "Yok"],
         ]

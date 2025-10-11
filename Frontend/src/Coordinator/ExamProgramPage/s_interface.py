@@ -425,6 +425,7 @@ class ExamProgramPage(QWidget):
             self.exam_program = ExamProgram()
             self.exam_program.set_dersler(self.dersler)
             self.exam_program.set_excluded_courses(list(self.excluded_courses))
+            self.exam_program.set_exam_conflict(self.exam_conflict)
 
             # Tarih aralığı
             if self.saved_start_date and self.saved_end_date:
@@ -452,8 +453,7 @@ class ExamProgramPage(QWidget):
             # Bekleme süresi
             self.exam_program.set_bekleme_suresi(self.saved_bekleme)
 
-            # ✅ THREAD artık self attribute olarak tutuluyor
-            self.get_class_and_student_worker = GetClasses("all_classes", self.user_info)
+            self.get_class_and_student_worker = GetClasses("classes_with_years", self.user_info)
             self.get_class_and_student_worker.finished.connect(self.handle_classes_and_students)
             self.get_class_and_student_worker.start()
 
@@ -484,6 +484,7 @@ class ExamProgramPage(QWidget):
 
                     clean_info = {
                         'class_name': str(class_info.get('class_name', '')),
+                        'year': str(class_info.get('year', '')),
                         'students': []
                     }
                     
