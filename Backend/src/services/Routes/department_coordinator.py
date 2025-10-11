@@ -132,6 +132,35 @@ def just_classes(user: User = Depends(require_coordinator)):
         return {"classes": [], "message": "Error while fetching classes.", 'status': 'error', 'detail': str(e)}
         
     return {"classes": classes, "message": "Classes fetched successfully.", 'status': status, 'detail': msg}
+
+@router.get("/classes_with_years")
+def classes_with_years(user: User = Depends(require_coordinator)):
+    try:
+        classes_list, status, msg = class_list_menu(user.department)
+        
+        if status == 'error' and status != 'success':
+            return {"classes": [], "message": "Error while fetching classes.", 'status': status, 'detail': msg}
+        
+        unique_classes = {}
+        for cls in classes_list:
+            cid = cls['class_id']
+            if cid not in unique_classes:
+                unique_classes[cid] = {
+                    'class_name': cls['class_name'],
+                    'years': set()
+                }
+            if cls.get('year') is not None:
+                unique_classes[cid]['years'].add(cls['year'])
+        
+        classes = [(cid, info['class_name'], sorted(info['years'])) for cid, info in unique_classes.items()]
+        print("Classes with years")
+        for cls in classes:
+            print("class_id:", cls[0], "class_name:", cls[1], "years:", cls[2])
+        
+    except Exception as e:
+        return {"classes": [], "message": "Error while fetching classes.", 'status': 'error', 'detail': str(e)}
+        
+    return {"classes": classes, "message": "Classes fetched successfully.", 'status': status, 'detail': msg}
     
     
 @router.post("/insert_classroom")

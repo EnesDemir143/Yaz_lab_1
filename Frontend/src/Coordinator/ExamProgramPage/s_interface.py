@@ -462,7 +462,6 @@ class ExamProgramPage(QWidget):
 
 
     def handle_classes_and_students(self, response):
-            """Sınıf ve öğrenci verilerini işler ve NumPy tiplerinden arındırır."""
             try:
                 if response.get("status") != "success":
                     QMessageBox.critical(

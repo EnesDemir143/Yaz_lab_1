@@ -8,6 +8,8 @@ from .ExanProgramClass import ExamProgram
 import numpy as np
 from itertools import combinations
 
+#TODO : Sınıfların hangi yıla ait olduğunu bilmek lazım. Onları da ekleyip öyle yapıcam devamını
+
 def _safe_to_str(val):
     """Excel'e yazılabilir güvenli dönüştürme"""
     if isinstance(val, (list, tuple, set, np.ndarray)):
