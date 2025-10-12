@@ -30,7 +30,7 @@ class ExamProgramPage(QWidget):
         self.saved_istisna_ders = None
         self.saved_istisna_sure = 60
         self.saved_bekleme = 15
-        self.exam_conflict = True 
+        self.exam_conflict = False 
         
         self.classes_and_their_students = None
         self.classrooms_data = None
@@ -168,7 +168,7 @@ class ExamProgramPage(QWidget):
                     
             elif self.current_step == 6:
                 if hasattr(self, 'check_conflict'):
-                    self.exam_conflict = not self.check_conflict.isChecked()
+                    self.exam_conflict = self.check_conflict.isChecked()
                     
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"❌ Veriler kaydedilirken hata oluştu:\n{str(e)}")
@@ -408,7 +408,7 @@ class ExamProgramPage(QWidget):
         self.content_layout.addSpacing(20)
 
         self.check_conflict = QCheckBox(
-            "Bu seçenek seçilirse, dersler aynı anda sınav olamaz."
+            "Bu seçenek seçilirse, dersler aynı anda sınav olabilir."
         )
         self.check_conflict.setChecked(self.exam_conflict)
         self.check_conflict.setCursor(Qt.PointingHandCursor)
@@ -421,20 +421,17 @@ class ExamProgramPage(QWidget):
         try:
             self.save_current_step_data()
 
-            # ExamProgram objesi oluştur
             self.exam_program = ExamProgram()
             self.exam_program.set_dersler(self.dersler)
             self.exam_program.set_excluded_courses(list(self.excluded_courses))
             self.exam_program.set_exam_conflict(self.exam_conflict)
 
-            # Tarih aralığı
             if self.saved_start_date and self.saved_end_date:
                 self.exam_program.set_tarih_araligi(
                     self.saved_start_date.toString(Qt.ISODate),
                     self.saved_end_date.toString(Qt.ISODate)
                 )
 
-            # Hariç günler
             haris_gunler = []
             if self.saved_cumartesi:
                 haris_gunler.append("Cumartesi")
@@ -442,10 +439,8 @@ class ExamProgramPage(QWidget):
                 haris_gunler.append("Pazar")
             self.exam_program.set_haris_gunler(haris_gunler)
 
-            # Sınav türü
             self.exam_program.set_sinav_turu(self.saved_sinav_turu)
 
-            # Süreler
             self.exam_program.set_varsayilan_sure(self.saved_varsayilan_sure)
             if self.saved_istisna_ders:
                 self.exam_program.set_istisna_ders(self.saved_istisna_ders, self.saved_istisna_sure)
@@ -470,53 +465,8 @@ class ExamProgramPage(QWidget):
                     )
                     return
 
-                # ------------ YENİ TEMİZLEME KODU BAŞLANGICI ------------
-                raw_class_dict = response.get("classes", {})
-                clean_class_dict = {}
+                self.classes_and_their_students = response.get("classes", {})
 
-                if not isinstance(raw_class_dict, dict):
-                    QMessageBox.critical(self, "Veri Hatası", "Sunucudan beklenen formatta sınıf verisi gelmedi.")
-                    return
-
-                for class_id, class_info in raw_class_dict.items():
-                    if not isinstance(class_info, dict): 
-                        continue
-
-                    clean_info = {
-                        'class_name': str(class_info.get('class_name', '')),
-                        'year': str(class_info.get('year', '')),
-                        'students': []
-                    }
-                    
-                    students_list = class_info.get('students', [])
-                    if not isinstance(students_list, list):
-                        continue
-
-                    for student in students_list:
-                        if not isinstance(student, dict): 
-                            continue
-                        
-                        try:
-                            clean_student = {
-                                # Değerleri standart tiplere zorla dönüştür
-                                'student_num': int(student.get('student_num')),
-                                'name': str(student.get('name', '')),
-                                'surname': str(student.get('surname', ''))
-                            }
-                            clean_info['students'].append(clean_student)
-                        except (ValueError, TypeError):
-                            # Hatalı öğrenci verisini atla
-                            print(f"Uyarı: Hatalı öğrenci verisi atlandı: {student}")
-                            continue
-                    
-                    # class_id'yi de standart string yap
-                    clean_class_dict[str(class_id)] = clean_info
-                
-                self.classes_and_their_students = clean_class_dict
-                # ------------ YENİ TEMİZLEME KODU SONU ------------
-
-
-                # Artık temizlenmiş veriyle devam edebiliriz
                 self.get_classroom_worker = ClassroomRequests("exam_classrooms", user_info=self.user_info)
                 self.get_classroom_worker.finished.connect(self.handle_classroom_response)
                 self.get_classroom_worker.start()
@@ -527,7 +477,6 @@ class ExamProgramPage(QWidget):
                     self.get_class_and_student_worker.wait()
 
     def handle_classroom_response(self, response):
-        """Classroom verilerini işler ve sınav programını oluşturur."""
         try:
             if response.get("status") != "success":
                 QMessageBox.warning(
@@ -536,21 +485,13 @@ class ExamProgramPage(QWidget):
                     "Program varsayılan odalarla oluşturulacak."
                 )
                 raise Exception("Classroom verileri alınamadı")
+            
             else:
-                classrooms_list = response.get("classrooms", [])
-                self.classrooms_data = [
-                    {
-                        'id': c.get('classroom_id', ''),
-                        'name': c.get('classroom_name', ''),
-                        'capacity': c.get('capacity', 0)
-                    }
-                    for c in classrooms_list
-                ]
+                self.classrooms_data = response.get("classrooms", [])
 
             self.create_exam_program()
 
         finally:
-            # Thread'i güvenli biçimde kapat
             if hasattr(self, "get_classroom_worker"):
                 self.get_classroom_worker.quit()
                 self.get_classroom_worker.wait()
@@ -558,7 +499,6 @@ class ExamProgramPage(QWidget):
         
     def create_exam_program(self):
         try:
-            # Verilerin kontrolü
             if not self.exam_program:
                 raise ValueError("ExamProgram nesnesi oluşturulmamış")
             if not self.classes_and_their_students:
@@ -566,7 +506,6 @@ class ExamProgramPage(QWidget):
             if not self.classrooms_data:
                 raise ValueError("Classroom verileri alınamadı")
             
-            # Sınav programını oluştur
             results = create_exam_schedule(
                 exam_program=self.exam_program,
                 class_dict=self.classes_and_their_students,
@@ -582,7 +521,6 @@ class ExamProgramPage(QWidget):
                 )
                 return
             
-            # ⚠️ Uyarılarla başarılı
             if results.get("status") == "warning":
                 warning_msg = "\n".join(results.get("warnings", [])[:3])
                 QMessageBox.warning(
@@ -590,7 +528,6 @@ class ExamProgramPage(QWidget):
                     f"⚠️ Program oluşturuldu ancak bazı sorunlar var:\n\n{warning_msg}"
                 )
             
-            # ✅ Tamamen başarılı
             stats = results.get("statistics", {})
             QMessageBox.information(
                 self, "Başarılı",
