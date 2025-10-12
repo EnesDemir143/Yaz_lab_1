@@ -133,11 +133,9 @@ def insert_class_to_program(
 
     print(f"🧩 '{class_name}' için sınav süresi: {exam_time} saat, bekleme: {waiting_after_exam} saat")
 
-    # 1️⃣ Eğer boş gün varsa ilk boş güne ekle
     for day in exam_schedule:
         exams = day["exams"]
 
-        # Gün tamamen boşsa direkt yeni blok aç
         if not exams:
             new_exam_block = {
                 "end_time": start_time + exam_time,
@@ -186,7 +184,6 @@ def insert_class_to_program(
                 print(f"✅ '{class_name}' sırayla yerleştirildi ({day['date']})")
                 return True
 
-    # 2️⃣ Eğer hiç uygun yer bulunamadıysa ve çakışma serbestse
     if has_exam_conflict:
         print(f"⚙️ Çakışma modu aktif — '{class_name}' için tüm günlerde paralel arama başlıyor.")
         for day in exam_schedule:
