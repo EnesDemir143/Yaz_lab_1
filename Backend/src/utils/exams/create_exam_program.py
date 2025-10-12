@@ -5,6 +5,8 @@ import itertools
 from datetime import timedelta, datetime
 import pandas as pd
 
+#TODO BİTİŞ SAATİ ŞUAN TEK END TİME VAR DİYE SORUNLU HER EXAM SONUNA BİRDE BAŞLANGIÇ BİTİŞ TARİHİ EKLENECEK
+
 def create_exam_schedule(
     exam_program: ExamProgram,
     class_dict: dict,
@@ -151,7 +153,6 @@ def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamP
     if not exams:
         print(f"Sınıf {class_name} için yeni sınav bloğu oluşturuluyor...")
         new_exam_block = {
-            "start_time": start_time,
             "end_time": start_time + exam_time,
             "classes": [{
                 "id": class_id,
@@ -160,7 +161,9 @@ def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamP
                 "student_count": student_count,
                 "students": students,
                 "duration": exam_time,
-                "classrooms": []
+                "classrooms": [],
+                "start_time": start_time,
+                "end_time": start_time + exam_time
             }]
         }
         
@@ -185,7 +188,9 @@ def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamP
                     "student_count": student_count,
                     "students": students,
                     "duration": exam_time,
-                    "classrooms": []
+                    "classrooms": [],
+                    "start_time": exam["end_time"],
+                    "end_time": exam["end_time"] + exam_time
                 })
                 
                 exam["end_time"] += exam_time + waiting_after_exam
@@ -224,7 +229,9 @@ def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamP
                                     "student_count": student_count,
                                     "students": students,
                                     "duration": exam_time,
-                                    "classrooms": []
+                                    "classrooms": [],
+                                    "start_time": exam["end_time"],
+                                    "end_time": exam["end_time"] + exam_time
                                 })
                                 
                                 exam["end_time"] += exam_time + waiting_after_exam
@@ -275,10 +282,10 @@ def download_exam_schedule(exam_schedule: List[dict], filename: str):
         date = day.get("date", "-")
         exams = day.get("exams", [])
         for exam in exams:
-            start_time = exam.get("start_time", "-")
-            end_time = exam.get("end_time", "-")
             classes = exam.get("classes", [])
             for cls in classes:
+                start_time = cls.get("start_time", "-")
+                end_time = cls.get("end_time", "-")
                 class_name = cls.get("name", "-")
                 year = cls.get("year", "-")
                 student_count = cls.get("student_count", 0)

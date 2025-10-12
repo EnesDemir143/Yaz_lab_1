@@ -98,11 +98,11 @@ class CreatedExamProgramPage(QWidget):
                     day_layout.addWidget(empty_lbl)
                 else:
                     for exam in exams:
-                        start = float_to_time_str(exam.get("start_time", "-"))
-                        end = float_to_time_str(exam.get("end_time", "-"))
                         classes = exam.get("classes", [])
 
                         for cls in classes:
+                            start = float_to_time_str(cls.get("start_time", 0))
+                            end = float_to_time_str(cls.get("end_time", 0))
                             cname = cls.get("name", "-")
                             cyear = cls.get("year", "-")
                             count = cls.get("student_count", 0)
