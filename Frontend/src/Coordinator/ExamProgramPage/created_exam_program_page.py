@@ -33,6 +33,7 @@ class CreatedExamProgramPage(QWidget):
         self.scroll_layout = QVBoxLayout(self.scroll_content)
         self.scroll_area.setWidget(self.scroll_content)
         self.main_layout.addWidget(self.scroll_area)
+        self.get_excel_btn = None
 
     def add_exam_program(self, result_data: dict):
         """Yeni oluşturulan programı ekrana ekler."""
@@ -143,22 +144,23 @@ class CreatedExamProgramPage(QWidget):
 
         self.scroll_layout.addStretch()
         
-        self.get_excel_btn = QPushButton("📥 Excel Olarak İndir")
-        self.get_excel_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                padding: 10px;
-                border: none;
-                border-radius: 5px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """)
-        self.get_excel_btn.clicked.connect(self.download_excel)
-        self.main_layout.addWidget(self.get_excel_btn, alignment=Qt.AlignCenter)
+        if not self.get_excel_btn:
+            self.get_excel_btn = QPushButton("📥 Excel Olarak İndir")
+            self.get_excel_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #4CAF50;
+                    color: white;
+                    padding: 10px;
+                    border: none;
+                    border-radius: 5px;
+                    font-size: 14px;
+                }
+                QPushButton:hover {
+                    background-color: #45a049;
+                }
+            """)
+            self.get_excel_btn.clicked.connect(self.download_excel)
+            self.main_layout.addWidget(self.get_excel_btn, alignment=Qt.AlignCenter)
     
     def download_excel(self):
         download_exam_schedule(

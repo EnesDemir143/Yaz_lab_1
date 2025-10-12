@@ -86,16 +86,18 @@ def create_exam_schedule(
             print(f"  -> BAŞARILI! '{class_data['name']}' dersi yerleştirildi.")
 
     print("\n" + "="*50 + "\n")
+    count = 0
     if failed_classes:
         print("İkincil Yerleştirme denemesi (ertelenen dersler)")
         for class_data in failed_classes:
             print(f"Tekrar Deneme - Ders: {class_data['name']}...")
-            is_successful_again = insert_class_to_program(class_data, None, exam_program, exam_schedule, all_classroom_combinations)
+            is_successful_again = insert_class_to_program(class_data, count, exam_program, exam_schedule, all_classroom_combinations)
             
             if not is_successful_again:
                 print(f"  -> SONUÇ: BAŞARISIZ! '{class_data['name']}' dersi programa yerleştirilemedi.")
             else:
                 print(f"  -> SONUÇ: BAŞARILI! '{class_data['name']}' dersi yerleştirildi.")
+            count += 1
     else:
         print("Tüm dersler ilk denemede başarıyla yerleştirildi!")
         
@@ -270,9 +272,9 @@ def find_suitable_classroom(all_classroom_combs, student_count: int, not_suitabl
         return best_combination
     
 def _students_conflict(class1: dict, class2: dict) -> bool:
-    students1 = set(class1.get('students', []))
-    students2 = set(class2.get('students', []))
-    
+    students1 = {s.get('student_num') for s in class1.get('students', []) if s.get('student_num')}
+    students2 = {s.get('student_num') for s in class2.get('students', []) if s.get('student_num')}
+
     return not students1.isdisjoint(students2)
 
 def download_exam_schedule(exam_schedule: List[dict], filename: str):
