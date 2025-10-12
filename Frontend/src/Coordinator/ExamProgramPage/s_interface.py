@@ -509,8 +509,7 @@ class ExamProgramPage(QWidget):
             results = create_exam_schedule(
                 exam_program=self.exam_program,
                 class_dict=self.classes_and_their_students,
-                rooms_data=self.classrooms_data,
-                excel_output_path="sinav_programi.xlsx"
+                classrooms=self.classrooms_data,
             )
             
             if results.get("status") == "error":
