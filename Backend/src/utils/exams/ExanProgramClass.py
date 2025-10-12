@@ -10,8 +10,8 @@ class ExamProgram:
         self.istisna_dersler = {}  
         self.bekleme_suresi = 15
         self.exam_conflict = False
-        self.start_time = "09:00"
-        self.end_time = "17:00"
+        self.start_time = 9.0
+        self.end_time = 17.0
         
     def get_start_time(self):
         return self.start_time

@@ -512,29 +512,13 @@ class ExamProgramPage(QWidget):
                 classrooms=self.classrooms_data,
             )
             
-            if results.get("status") == "error":
-                error_msg = "\n".join(results.get("errors", []))
-                QMessageBox.critical(
-                    self, "Program Oluşturulamadı",
-                    f"❌ Sınav programı oluşturulamadı!\n\n{error_msg}"
-                )
-                return
-            
-            if results.get("status") == "warning":
-                warning_msg = "\n".join(results.get("warnings", [])[:3])
-                QMessageBox.warning(
-                    self, "Dikkat",
-                    f"⚠️ Program oluşturuldu ancak bazı sorunlar var:\n\n{warning_msg}"
-                )
-            
             stats = results.get("statistics", {})
             QMessageBox.information(
                 self, "Başarılı",
                 f"✅ Sınav programı başarıyla oluşturuldu!\n\n"
-                f"📚 Toplam ders: {stats.get('total_courses')}\n"
-                f"✓ Yerleştirilen: {stats.get('placed_courses')}\n"
-                f"✗ Yerleştirilemeyen: {stats.get('unplaced_courses')}\n"
-                f"📅 Kullanılan gün: {stats.get('total_days')}"
+                f"📚 Toplam ders: {stats.get('total_classes')}\n"
+                f"✓ Yerleştirilen: {stats.get('successful_classes')}\n"
+                f"✗ Yerleştirilemeyen: {stats.get('failed_classes')}\n"
             )
             
             self.program_created.emit(results)

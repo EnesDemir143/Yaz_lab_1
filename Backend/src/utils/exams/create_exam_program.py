@@ -2,18 +2,30 @@ from Backend.src.utils.exams.ExanProgramClass import ExamProgram
 from typing import List
 from queue import PriorityQueue
 import itertools
+from datetime import timedelta, datetime
 
 def create_exam_schedule(
     exam_program: ExamProgram,
     class_dict: dict,
     classrooms: list[dict]) -> dict:
     
-    first_date = exam_program.get_first_date_of_exam()
-    last_date = exam_program.get_last_date_of_exam()
+    statistics = {}
+    
+    first_date_str = exam_program.get_first_date_of_exam()
+    last_date_str = exam_program.get_last_date_of_exam()
+    
+    first_date = datetime.fromisoformat(first_date_str)
+    last_date = datetime.fromisoformat(last_date_str)
+
     
     exam_schedule = []
-    for date in range(first_date, last_date + 1):
-        exam_schedule.append({ "date": date, "exams": [] })
+    current_date = first_date
+    while current_date <= last_date:
+        exam_schedule.append({
+            "date": current_date.strftime("%Y-%m-%d"),
+            "exams": []
+        })
+        current_date += timedelta(days=1)
         
     all_classroom_combinations = _find_all_combinations(classrooms)
     print(f"Tüm sınıf kombinasyonları bulundu: {len(all_classroom_combinations)} adet")
@@ -83,16 +95,25 @@ def create_exam_schedule(
                 print(f"  -> SONUÇ: BAŞARILI! '{class_data['name']}' dersi yerleştirildi.")
     else:
         print("Tüm dersler ilk denemede başarıyla yerleştirildi!")
+        
+    statistics['total_classes'] = len(class_dict)
+    statistics['failed_classes'] = len(failed_classes)
+    statistics['successful_classes'] = statistics['total_classes'] - statistics['failed_classes']
+        
+    return {
+        "exam_schedule": exam_schedule,
+        "failed_classes": failed_classes,
+        "statistics": statistics
+    }
 
 def _find_all_combinations(classrooms: List[dict]) -> List[List[dict]]:
     n = len(classrooms)
     all_combinations = []
     
     for r in range(1, n + 1):
-        comb_list = itertools.combinations(classrooms, r) 
-
+        comb_list = list(itertools.combinations(classrooms, r))
         print(f"{r} öğeli kombinasyonlar: {len(comb_list)} adet")
-        print(list(comb_list))
+        print(comb_list)
         
         all_combinations.extend(comb_list)
         
@@ -111,11 +132,10 @@ def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamP
     start_time = exam_program.get_start_time()
     end_time = exam_program.get_end_time()
     
-    
-    exam_time = exam_program.get_ders_suresi(class_name)
+    exam_time = exam_program.get_ders_suresi(class_name) / 60
     print(f"Sınıf {class_name} için sınav süresi: {exam_time} dakika")
 
-    waiting_after_exam = exam_program.get_bekleme_suresi()
+    waiting_after_exam = exam_program.get_bekleme_suresi() / 60
     print(f"Sınav sonrası bekleme süresi: {waiting_after_exam} dakika")
     
     len_of_schedule = len(exam_schedule)
@@ -127,7 +147,7 @@ def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamP
         
     exams = exam_schedule[list_index]["exams"]
     
-    if exams.empty():
+    if not exams:
         print(f"Sınıf {class_name} için yeni sınav bloğu oluşturuluyor...")
         new_exam_block = {
             "start_time": start_time,
@@ -149,7 +169,7 @@ def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamP
             return False
         else:
             new_exam_block["classes"][0]["classrooms"] = classroom
-            print(f"Sınıf {class_name} için sınıflar atandı: {[room['name'] for room in classroom]}")
+            print(f"Sınıf {class_name} için sınıflar atandı: {[room['classroom_name'] for room in classroom]}")
         
         exams.append(new_exam_block)
         print(f"Sınıf {class_name} için yeni sınav bloğu oluşturuldu.")
@@ -175,7 +195,7 @@ def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamP
                     return False
                 else:
                     exam["classes"][-1]["classrooms"] = classroom
-                    print(f"Sınıf {class_name} için sınıflar atandı: {[room['name'] for room in classroom]}")
+                    print(f"Sınıf {class_name} için sınıflar atandı: {[room['classroom_name'] for room in classroom]}")
                     return True
             else:
                 print(f"Sınıf {class_name} için mevcut sınav bloğuna eklenemedi, başka bloklar aranıyor...")
@@ -214,7 +234,7 @@ def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamP
                                     return False
                                 else:
                                     exam["classes"][-1]["classrooms"] = classroom
-                                    print(f"Sınıf {class_name} için sınıflar atandı: {[room['name'] for room in classroom]}")
+                                    print(f"Sınıf {class_name} için sınıflar atandı: {[room['classroom_name'] for room in classroom]}")
                                     return True
             else:
                 print(f"Sınıf {class_name} için mevcut sınav bloklarına eklenemedi ve çakışma izni yok.")
@@ -223,20 +243,22 @@ def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamP
    
 def find_suitable_classroom(all_classroom_combs, student_count: int, not_suitable_classrooms: List = []) -> List[dict] | None:
     suitable_combinations = PriorityQueue()
+    counter = 0
     
     for combination in all_classroom_combs:
         total_capacity = sum(room['capacity'] for room in combination)
         priority =(len(combination), total_capacity - student_count)
         if total_capacity >= student_count and combination not in not_suitable_classrooms:
-            suitable_combinations.put((priority, combination))
+            suitable_combinations.put((priority, counter, combination))
+            counter += 1
             
     
     if suitable_combinations.empty():
         print(f"Öğrenci sayısı {student_count} için uygun sınıf kombinasyonu bulunamadı.")
         return None    
     else:
-        best_combination = suitable_combinations.get()[1]
-        print(f"Öğrenci sayısı {student_count} için uygun sınıf kombinasyonu bulundu: {[room['name'] for room in best_combination]}")
+        best_combination = suitable_combinations.get()[2]
+        print(f"Öğrenci sayısı {student_count} için uygun sınıf kombinasyonu bulundu: {[room['classroom_name'] for room in best_combination]}")
         return best_combination
     
 def _students_conflict(class1: dict, class2: dict) -> bool:
