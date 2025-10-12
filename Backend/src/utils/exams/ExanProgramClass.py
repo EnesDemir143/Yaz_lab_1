@@ -34,6 +34,9 @@ class ExamProgram:
     def set_exam_conflict(self, conflict: bool):
         self.exam_conflict = conflict
     
+    def get_exam_conflict(self):
+        return self.exam_conflict
+    
     def set_dersler(self, dersler):
         self.dersler = dersler
     
