@@ -10,7 +10,27 @@ class ExamProgram:
         self.istisna_dersler = {}  
         self.bekleme_suresi = 15
         self.exam_conflict = False
+        self.start_time = "09:00"
+        self.end_time = "17:00"
         
+    def get_start_time(self):
+        return self.start_time
+    
+    def get_end_time(self):
+        return self.end_time
+        
+    def get_first_date_of_exam(self):
+        return self.tarih_baslangic
+        
+    def get_last_date_of_exam(self):
+        return self.tarih_bitis
+    
+    def get_exception_classes(self):
+        return self.istisna_dersler
+    
+    def get_default_duration(self):
+        return self.varsayilan_sure
+    
     def set_exam_conflict(self, conflict: bool):
         self.exam_conflict = conflict
     
@@ -42,6 +62,9 @@ class ExamProgram:
     
     def set_bekleme_suresi(self, sure):
         self.bekleme_suresi = sure
+        
+    def get_bekleme_suresi(self):
+        return self.bekleme_suresi
     
     def get_ders_suresi(self, ders_adi):
         return self.istisna_dersler.get(ders_adi, self.varsayilan_sure)
