@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
+from Backend.src.utils.exams.create_exam_program import float_to_time_str, download_exam_schedule
 
 
 class CreatedExamProgramPage(QWidget):
@@ -10,12 +11,12 @@ class CreatedExamProgramPage(QWidget):
         super().__init__(parent)
         self.user_info = user_info
         self.programs = []
+        self.exam_schedule = []
         self.init_ui()
 
     def init_ui(self):
         self.main_layout = QVBoxLayout(self)
 
-        # --- Başlık ---
         title = QLabel("📘 Oluşturulmuş Sınav Programları")
         title.setFont(QFont("Arial", 18, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
@@ -26,7 +27,6 @@ class CreatedExamProgramPage(QWidget):
         self.info_label.setStyleSheet("color: #ccc; font-size: 13px;")
         self.main_layout.addWidget(self.info_label)
 
-        # --- Scroll alanı ---
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_content = QWidget()
@@ -37,17 +37,15 @@ class CreatedExamProgramPage(QWidget):
     def add_exam_program(self, result_data: dict):
         """Yeni oluşturulan programı ekrana ekler."""
 
-        exam_schedule = result_data.get("exam_schedule", [])
+        self.exam_schedule = result_data.get("exam_schedule", [])
         failed_classes = result_data.get("failed_classes", [])
         stats = result_data.get("statistics", {})
 
-        # --- Önce varsa eski içerikleri temizle ---
         for i in reversed(range(self.scroll_layout.count())):
             widget = self.scroll_layout.itemAt(i).widget()
             if widget:
                 widget.deleteLater()
 
-        # --- Genel istatistikler kutusu ---
         stats_frame = QFrame()
         stats_frame.setStyleSheet("""
             QFrame {
@@ -68,14 +66,13 @@ class CreatedExamProgramPage(QWidget):
         stats_layout.addWidget(stats_label)
         self.scroll_layout.addWidget(stats_frame)
 
-        # --- Program detayları ---
-        if not exam_schedule:
+        if not self.exam_schedule:
             msg = QLabel("⚠️ Henüz sınav programı oluşturulmamış.")
             msg.setAlignment(Qt.AlignCenter)
             msg.setStyleSheet("color: #888; font-style: italic;")
             self.scroll_layout.addWidget(msg)
         else:
-            for day in exam_schedule:
+            for day in self.exam_schedule:
                 date = day.get("date", "-")
                 exams = day.get("exams", [])
 
@@ -90,7 +87,6 @@ class CreatedExamProgramPage(QWidget):
                 """)
                 day_layout = QVBoxLayout(day_frame)
 
-                # Gün başlığı
                 day_label = QLabel(f"📅 Tarih: {date}")
                 day_label.setFont(QFont("Arial", 13, QFont.Bold))
                 day_label.setStyleSheet("color: #4ee44e;")
@@ -102,8 +98,8 @@ class CreatedExamProgramPage(QWidget):
                     day_layout.addWidget(empty_lbl)
                 else:
                     for exam in exams:
-                        start = self._float_to_time_str(exam.get("start_time", "-"))
-                        end = self._float_to_time_str(exam.get("end_time", "-"))
+                        start = float_to_time_str(exam.get("start_time", "-"))
+                        end = float_to_time_str(exam.get("end_time", "-"))
                         classes = exam.get("classes", [])
 
                         for cls in classes:
@@ -122,7 +118,6 @@ class CreatedExamProgramPage(QWidget):
 
                 self.scroll_layout.addWidget(day_frame)
 
-        # --- Başarısız dersler kısmı ---
         if failed_classes:
             fail_frame = QFrame()
             fail_frame.setStyleSheet("""
@@ -147,8 +142,26 @@ class CreatedExamProgramPage(QWidget):
             self.scroll_layout.addWidget(fail_frame)
 
         self.scroll_layout.addStretch()
-
-    def _float_to_time_str(self, hour_float: float) -> str:
-        hour = int(hour_float)
-        minute = int(round((hour_float - hour) * 60))
-        return f"{hour:02d}:{minute:02d}"
+        
+        self.get_excel_btn = QPushButton("📥 Excel Olarak İndir")
+        self.get_excel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                padding: 10px;
+                border: none;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        self.get_excel_btn.clicked.connect(self.download_excel)
+        self.main_layout.addWidget(self.get_excel_btn, alignment=Qt.AlignCenter)
+    
+    def download_excel(self):
+        download_exam_schedule(
+            exam_schedule=self.exam_schedule,
+            filename="exam_schedule.xlsx"
+        )

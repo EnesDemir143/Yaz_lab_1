@@ -3,6 +3,7 @@ from typing import List
 from queue import PriorityQueue
 import itertools
 from datetime import timedelta, datetime
+import pandas as pd
 
 def create_exam_schedule(
     exam_program: ExamProgram,
@@ -266,3 +267,39 @@ def _students_conflict(class1: dict, class2: dict) -> bool:
     students2 = set(class2.get('students', []))
     
     return not students1.isdisjoint(students2)
+
+def download_exam_schedule(exam_schedule: List[dict], filename: str):
+    rows = []
+
+    for day in exam_schedule:
+        date = day.get("date", "-")
+        exams = day.get("exams", [])
+        for exam in exams:
+            start_time = exam.get("start_time", "-")
+            end_time = exam.get("end_time", "-")
+            classes = exam.get("classes", [])
+            for cls in classes:
+                class_name = cls.get("name", "-")
+                year = cls.get("year", "-")
+                student_count = cls.get("student_count", 0)
+                classrooms = [r.get("classroom_name", "-") for r in cls.get("classrooms", [])]
+
+                rows.append({
+                    "Tarih": date,
+                    "Başlangıç Saati": float_to_time_str(start_time),
+                    "Bitiş Saati": float_to_time_str(end_time),
+                    "Ders Adı": class_name,
+                    "Sınıf Yılı": year,
+                    "Öğrenci Sayısı": student_count,
+                    "Sınıflar": ", ".join(classrooms)
+                })
+
+    df = pd.DataFrame(rows)
+    df.to_excel(filename, index=False)
+    print(f"Sınav programı '{filename}' dosyasına kaydedildi.")
+
+
+def float_to_time_str(hour_float: float) -> str:
+    hour = int(hour_float)
+    minute = int(round((hour_float - hour) * 60))
+    return f"{hour:02d}:{minute:02d}"
