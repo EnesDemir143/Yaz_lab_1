@@ -4,6 +4,7 @@ from queue import PriorityQueue
 import itertools
 from datetime import timedelta, datetime
 import pandas as pd
+import random
 
 #TODO BİTİŞ SAATİ ŞUAN TEK END TİME VAR DİYE SORUNLU HER EXAM SONUNA BİRDE BAŞLANGIÇ BİTİŞ TARİHİ EKLENECEK
 
@@ -47,37 +48,23 @@ def create_exam_schedule(
             }
             classes_by_year[year].append(class_data)
 
-    for year in classes_by_year:
-        classes_by_year[year].sort(key=lambda x: x['student_count'], reverse=True)
+    # Tüm yıllardaki dersleri tek listede topla
+    all_classes = []
+    for year_classes in classes_by_year.values():
+        all_classes.extend(year_classes)
 
-    final_ordered_list = []
+    # Listeyi tamamen karıştır
+    random.shuffle(all_classes)
 
-    years = sorted(classes_by_year.keys())
-    processing_order = years + years[-2:0:-1]
-
-    year_iterator = itertools.cycle(processing_order)
-
-    while any(classes_by_year.values()):
-        year_to_process = next(year_iterator)
-        if classes_by_year[year_to_process]:
-            class_to_add = classes_by_year[year_to_process].pop(0)
-            final_ordered_list.append(class_to_add)
-
-    
-    classes_queue = PriorityQueue()
-    priority_counter = 0
-
-    for class_data in final_ordered_list:
-        classes_queue.put((priority_counter, class_data))
-        priority_counter += 1
+    # Sonuç
+    final_ordered_list = all_classes
             
     failed_classes = []
 
     print("Birincil Yerleştirme denemesi başlıyor...")
-    while not classes_queue.empty():
-        priority, class_data = classes_queue.get()
-        print(f"Deneme - Öncelik {priority}: {class_data['name']}...")
-        is_successful = insert_class_to_program(class_data, priority, exam_program, exam_schedule, all_classroom_combinations)
+    for idx, class_data in enumerate(final_ordered_list):
+        print(f"Deneme - Öncelik {idx}: {class_data['name']}...")
+        is_successful = insert_class_to_program(class_data, idx, exam_program, exam_schedule, all_classroom_combinations)
         
         if not is_successful:
             print(f"  -> BAŞARISIZ! '{class_data['name']}' dersi sonraya ertelendi.")
@@ -124,66 +111,37 @@ def _find_all_combinations(classrooms: List[dict]) -> List[List[dict]]:
         
     return all_combinations
         
-        
-def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamProgram, exam_schedule: List, all_classroom_combs: List[dict]) -> bool:
+def insert_class_to_program(
+    class_data: dict,
+    priority: int,
+    exam_program: ExamProgram,
+    exam_schedule: List[dict],
+    all_classroom_combs: List[dict]
+) -> bool:
     class_id = class_data['id']
     class_name = class_data['name']
     year = class_data['year']
     student_count = class_data['student_count']
     students = class_data.get('students', [])
-    
+
     has_exam_conflict = exam_program.get_exam_conflict()
-    
     start_time = exam_program.get_start_time()
     end_time = exam_program.get_end_time()
-    
-    exam_time = exam_program.get_ders_suresi(class_name) / 60
-    print(f"Sınıf {class_name} için sınav süresi: {exam_time} dakika")
 
+    exam_time = exam_program.get_ders_suresi(class_name) / 60
     waiting_after_exam = exam_program.get_bekleme_suresi() / 60
-    print(f"Sınav sonrası bekleme süresi: {waiting_after_exam} dakika")
-    
-    len_of_schedule = len(exam_schedule)
-    if len_of_schedule < priority + 1:
-        print(f"Sınıf {class_name} için daha fazla farkli tarih yok, ayni tarihleri kullanacagiz.")
-        list_index = priority % len_of_schedule
-    else:
-        list_index = priority
-        
-    exams = exam_schedule[list_index]["exams"]
-    
-    if not exams:
-        print(f"Sınıf {class_name} için yeni sınav bloğu oluşturuluyor...")
-        new_exam_block = {
-            "end_time": start_time + exam_time,
-            "classes": [{
-                "id": class_id,
-                "name": class_name,
-                "year": year,
-                "student_count": student_count,
-                "students": students,
-                "duration": exam_time,
-                "classrooms": [],
-                "start_time": start_time,
-                "end_time": start_time + exam_time
-            }]
-        }
-        
-        classroom = find_suitable_classroom(all_classroom_combs, student_count)
-        if classroom is None:
-            print(f"Sınıf {class_name} için uygun sınıf bulunamadı, sınav eklenemedi.")
-            return False
-        else:
-            new_exam_block["classes"][0]["classrooms"] = classroom
-            print(f"Sınıf {class_name} için sınıflar atandı: {[room['classroom_name'] for room in classroom]}")
-        
-        exams.append(new_exam_block)
-        print(f"Sınıf {class_name} için yeni sınav bloğu oluşturuldu.")
-        return True
-    else:
-        for exam in exams:
-            if exam["end_time"] + exam_time <= end_time:
-                exam["classes"].append({
+
+    print(f"🧩 '{class_name}' için sınav süresi: {exam_time} saat, bekleme: {waiting_after_exam} saat")
+
+    # 1️⃣ Eğer boş gün varsa ilk boş güne ekle
+    for day in exam_schedule:
+        exams = day["exams"]
+
+        # Gün tamamen boşsa direkt yeni blok aç
+        if not exams:
+            new_exam_block = {
+                "end_time": start_time + exam_time,
+                "classes": [{
                     "id": class_id,
                     "name": class_name,
                     "year": year,
@@ -191,63 +149,86 @@ def insert_class_to_program(class_data: dict, priority: int, exam_program: ExamP
                     "students": students,
                     "duration": exam_time,
                     "classrooms": [],
+                    "start_time": start_time,
+                    "end_time": start_time + exam_time
+                }]
+            }
+
+            classroom = find_suitable_classroom(all_classroom_combs, student_count)
+            if classroom is None:
+                print(f"❌ {class_name}: uygun sınıf bulunamadı (boş güne ekleme).")
+                continue
+
+            new_exam_block["classes"][0]["classrooms"] = classroom
+            exams.append(new_exam_block)
+            print(f"✅ '{class_name}' yeni güne yerleştirildi ({day['date']})")
+            return True
+
+        for exam in exams:
+            if exam["end_time"] + exam_time <= end_time:
+                classroom = find_suitable_classroom(all_classroom_combs, student_count)
+                if classroom is None:
+                    continue
+
+                exam["classes"].append({
+                    "id": class_id,
+                    "name": class_name,
+                    "year": year,
+                    "student_count": student_count,
+                    "students": students,
+                    "duration": exam_time,
+                    "classrooms": classroom,
                     "start_time": exam["end_time"],
                     "end_time": exam["end_time"] + exam_time
                 })
-                
-                exam["end_time"] += exam_time + waiting_after_exam
-                
-                classroom = find_suitable_classroom(all_classroom_combs, student_count)
-                if classroom is None:
-                    print(f"Sınıf {class_name} için uygun sınıf bulunamadı, sınav eklenemedi.")
-                    return False
-                else:
-                    exam["classes"][-1]["classrooms"] = classroom
-                    print(f"Sınıf {class_name} için sınıflar atandı: {[room['classroom_name'] for room in classroom]}")
-                    return True
-            else:
-                print(f"Sınıf {class_name} için mevcut sınav bloğuna eklenemedi, başka bloklar aranıyor...")
-                
-        else:
-            if has_exam_conflict:
-                print("Sinif cakismasi serbest, ona gore tekrar kontrol edilcek...")
 
-                not_suitable_classrooms = []
-                
-                for exam in exams:
-                    for existing_class in exam["classes"]:
-                        is_student_conflict = _students_conflict(existing_class, class_data)
-                        if is_student_conflict:
-                            print(f"Sınıf {class_name} ile {existing_class['name']} arasında öğrenci çakışması var, bu bloğa eklenemez.")
-                            continue
-                        else:
-                            print(f"Sınıf {class_name} ile {existing_class['name']} arasında öğrenci çakışması yok, bu bloğa eklenebilir.")
-                            not_suitable_classrooms.append(existing_class.get('classrooms', []))
-                            if exam["end_time"] + exam_time <= end_time:
-                                exam["classes"].append({
-                                    "id": class_id,
-                                    "name": class_name,
-                                    "year": year,
-                                    "student_count": student_count,
-                                    "students": students,
-                                    "duration": exam_time,
-                                    "classrooms": [],
-                                    "start_time": exam["end_time"],
-                                    "end_time": exam["end_time"] + exam_time
-                                })
-                                
-                                exam["end_time"] += exam_time + waiting_after_exam
-                                
-                                classroom = find_suitable_classroom(all_classroom_combs, student_count, not_suitable_classrooms=not_suitable_classrooms)
-                                if classroom is None:
-                                    print(f"Sınıf {class_name} için uygun sınıf bulunamadı, sınav eklenemedi.")
-                                    return False
-                                else:
-                                    exam["classes"][-1]["classrooms"] = classroom
-                                    print(f"Sınıf {class_name} için sınıflar atandı: {[room['classroom_name'] for room in classroom]}")
-                                    return True
-            else:
-                print(f"Sınıf {class_name} için mevcut sınav bloklarına eklenemedi ve çakışma izni yok.")
+                exam["end_time"] += exam_time + waiting_after_exam
+                print(f"✅ '{class_name}' sırayla yerleştirildi ({day['date']})")
+                return True
+
+    # 2️⃣ Eğer hiç uygun yer bulunamadıysa ve çakışma serbestse
+    if has_exam_conflict:
+        print(f"⚙️ Çakışma modu aktif — '{class_name}' için tüm günlerde paralel arama başlıyor.")
+        for day in exam_schedule:
+            for exam in day["exams"]:
+                has_conflict_with_any = False
+                for existing_class in exam["classes"]:
+                    if _students_conflict(existing_class, class_data):
+                        print(f"   ❌ '{class_name}' ile '{existing_class['name']}' arasında öğrenci çakışması var.")
+                        has_conflict_with_any = True
+                        continue
+
+                if not has_conflict_with_any:
+                    not_suitable_classrooms = [
+                        r['classroom_name']
+                        for c in exam["classes"]
+                        for r in c.get('classrooms', [])
+                    ]
+
+                    classroom = find_suitable_classroom(
+                        all_classroom_combs,
+                        student_count,
+                        not_suitable_classrooms=not_suitable_classrooms
+                    )
+                    if classroom is None:
+                        print(f"❌ {class_name}: uygun sınıf bulunamadı (paralel ekleme).")
+                        continue
+
+                    exam["classes"].append({
+                        "id": class_id,
+                        "name": class_name,
+                        "year": year,
+                        "student_count": student_count,
+                        "students": students,
+                        "duration": exam_time,
+                        "classrooms": classroom,
+                        "start_time": exam["classes"][0]["start_time"],
+                        "end_time": exam["classes"][0]["end_time"]
+                    })
+                    print(f"⚡ '{class_name}' paralel olarak '{exam['classes'][0]['name']}' ile aynı saatte ({day['date']}) yerleştirildi.")
+                    return True
+
+    print(f"⚠️ '{class_name}' için hiçbir gün/slotta uygun yer bulunamadı.")
     return False
                         
    
@@ -255,10 +236,12 @@ def find_suitable_classroom(all_classroom_combs, student_count: int, not_suitabl
     suitable_combinations = PriorityQueue()
     counter = 0
     
+    
     for combination in all_classroom_combs:
+        comb_room_names = [r['classroom_name'] for r in combination]
         total_capacity = sum(room['capacity'] for room in combination)
         priority =(len(combination), total_capacity - student_count)
-        if total_capacity >= student_count and combination not in not_suitable_classrooms:
+        if total_capacity >= student_count and not any(n in not_suitable_classrooms for n in comb_room_names):
             suitable_combinations.put((priority, counter, combination))
             counter += 1
             
