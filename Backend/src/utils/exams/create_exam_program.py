@@ -1,3 +1,5 @@
+import math
+
 from Backend.src.utils.exams.ExanProgramClass import ExamProgram
 from typing import List
 from queue import PriorityQueue
@@ -225,22 +227,46 @@ def insert_class_to_program(
 
     print(f"⚠️ '{class_name}' için hiçbir gün/slotta uygun yer bulunamadı.")
     return False
-                        
-   
-def find_suitable_classroom(all_classroom_combs, student_count: int, not_suitable_classrooms: List = []) -> List[dict] | None:
+
+
+import math
+from queue import PriorityQueue
+from typing import List
+
+
+def find_suitable_classroom(all_classroom_combs, student_count: int, not_suitable_classrooms: List = []) -> List[
+                                                                                                                dict] | None:
     suitable_combinations = PriorityQueue()
     counter = 0
-    
-    
+
     for combination in all_classroom_combs:
         comb_room_names = [r['classroom_name'] for r in combination]
-        total_capacity = sum(room['capacity'] for room in combination)
-        priority =(len(combination), total_capacity - student_count)
+        total_capacity = 0
+
+        for room in combination:
+            desks_per_row = room['desks_per_row']
+            desks_per_column = room['desks_per_column']
+            desk_structure = room['desk_structure']
+
+            row_capacity = 0
+
+            if desk_structure == 1:
+                row_capacity = desks_per_row
+
+            elif desk_structure == 2 or desk_structure == 4:
+                row_capacity = math.ceil(desks_per_row / 2)
+
+            elif desk_structure == 3:
+                num_groups = desks_per_row // 3
+                leftovers = desks_per_row % 3
+                row_capacity = (num_groups * 2) + leftovers
+            total_capacity += row_capacity * desks_per_column
+        priority = (len(combination), total_capacity - student_count)
+
         if total_capacity >= student_count and not any(n in not_suitable_classrooms for n in comb_room_names):
             suitable_combinations.put((priority, counter, combination))
             counter += 1
-            
-    
+
     if suitable_combinations.empty():
         print(f"Öğrenci sayısı {student_count} için uygun sınıf kombinasyonu bulunamadı.")
         return None    
@@ -304,17 +330,97 @@ def create_seating_plan(exam_schedule: List[dict]) -> dict:
                 classrooms = [r.get("classroom_name", "-") for r in cls.get("classrooms", [])]
                 print(f'{cls.get("name", "-")} has a {len(cls.get("students", "-"))}, in rooms: {", ".join(classrooms)}')
 
-                def seperate_students(students, classrooms):
-                    for room in classrooms:
-                        yield students[0:room['capacity']]
-                        students = students[room['capacity']:]
-
                 students = cls.get("students", []).copy()
                 random.shuffle(students)
                 cls['seating_plan'] = {}
 
                 for room, students in zip(classrooms, seperate_students(students, classrooms)):
-                    cls['seating_plan'][room['classroom_name']] = students
+                    student_grid = adjust_seating_plan(room, students)
+                    cls['seating_plan'][room['classroom_name']] = tuple(student_grid.items())
+
                     print(f'{room["classroom_name"]} has {len(students)} students')
 
     return exam_schedule
+
+
+def seperate_students(students, classrooms):
+    for room in classrooms:
+        desks_per_row = room['desks_per_row']
+        desks_per_column = room['desks_per_column']
+        desk_structure = room['desk_structure']
+
+        row_capacity = 0
+
+        if desk_structure == 1:
+            row_capacity = desks_per_row
+
+        elif desk_structure == 2 or desk_structure == 4:
+            row_capacity = math.ceil(desks_per_row / 2)
+
+        elif desk_structure == 3:
+            num_groups = desks_per_row // 3
+            leftovers = desks_per_row % 3
+            row_capacity = (num_groups * 2) + leftovers
+        total_capacity = row_capacity * desks_per_column
+
+        yield students[0:total_capacity]
+        students = students[total_capacity:]
+
+
+def adjust_seating_plan(room, students):
+    student_grid = {}
+    desk_structure = room['desk_structure']
+    num_rows = room['desks_per_column']
+    num_desk_cols = room['desks_per_row']
+
+    if desk_structure <= 0:
+        print("Sıra yapısı (desk_structure) pozitif bir sayı olmalıdır.")
+        return {}
+
+    grid_col_index = 0
+    desk_cols_placed = 0
+    while desk_cols_placed < num_desk_cols:
+        if desk_cols_placed > 0 and desk_cols_placed % desk_structure == 0:
+            for row in range(num_rows):
+                student_grid[(row, grid_col_index)] = 'AISLE'
+            grid_col_index += 1
+
+        for row in range(num_rows):
+            student_grid[(row, grid_col_index)] = None
+        desk_cols_placed += 1
+        grid_col_index += 1
+
+    student_iterator = iter(students)
+    max_grid_col = grid_col_index
+    desk_col_counter = 0
+
+    for c in range(max_grid_col):
+        if student_grid.get((0, c)) == 'AISLE':
+            continue
+
+        position_in_structure = desk_col_counter % desk_structure
+        
+        place_students_in_this_col = False
+
+        if desk_structure == 1:
+            place_students_in_this_col = True
+        elif desk_structure == 2 or desk_structure == 4:
+            if position_in_structure == 0:
+                place_students_in_this_col = True
+        elif desk_structure == 3:
+            if position_in_structure != 1:
+                place_students_in_this_col = True
+        elif desk_structure == 4:
+            if position_in_structure == 0 or position_in_structure == 3:
+                place_students_in_this_col = True
+
+        if place_students_in_this_col:
+            for r in range(num_rows):
+                try:
+                    student_grid[(r, c)] = next(student_iterator)
+                except StopIteration:
+                    return student_grid
+        
+        desk_col_counter += 1
+
+    return student_grid

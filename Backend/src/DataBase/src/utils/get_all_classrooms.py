@@ -9,6 +9,9 @@ def get_all_classrooms(department: str) -> list[dict]:
                 SELECT 
                     classroom_id,
                     classroom_name,
+                    desks_per_row,
+                    desks_per_column,
+                    desk_structure,
                     capacity
                 FROM classrooms
                 WHERE department_name = %s;
