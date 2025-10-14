@@ -6,7 +6,6 @@ from datetime import timedelta, datetime
 import pandas as pd
 import random
 
-#TODO BİTİŞ SAATİ ŞUAN TEK END TİME VAR DİYE SORUNLU HER EXAM SONUNA BİRDE BAŞLANGIÇ BİTİŞ TARİHİ EKLENECEK
 
 def create_exam_schedule(
     exam_program: ExamProgram,
@@ -48,15 +47,12 @@ def create_exam_schedule(
             }
             classes_by_year[year].append(class_data)
 
-    # Tüm yıllardaki dersleri tek listede topla
     all_classes = []
     for year_classes in classes_by_year.values():
         all_classes.extend(year_classes)
 
-    # Listeyi tamamen karıştır
     random.shuffle(all_classes)
 
-    # Sonuç
     final_ordered_list = all_classes
             
     failed_classes = []
@@ -220,7 +216,7 @@ def insert_class_to_program(
                         "duration": exam_time,
                         "classrooms": classroom,
                         "start_time": exam["classes"][0]["start_time"],
-                        "end_time": exam["classes"][0]["end_time"]
+                        "end_time": exam["classes"][0]["start_time"] + exam_time
                     })
                     print(f"⚡ '{class_name}' paralel olarak '{exam['classes'][0]['name']}' ile aynı saatte ({day['date']}) yerleştirildi.")
                     return True
