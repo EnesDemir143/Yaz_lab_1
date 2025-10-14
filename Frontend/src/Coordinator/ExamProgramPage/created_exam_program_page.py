@@ -1,10 +1,12 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QFrame, QPushButton, QMessageBox, QGridLayout
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QFrame, QPushButton, QMessageBox, QGridLayout, QFileDialog
 )
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, QRectF
+from PyQt5.QtGui import QFont, QColor, QPen
 from Backend.src.utils.exams.create_exam_program import float_to_time_str, download_exam_schedule
-
+from PyQt5.QtPrintSupport import QPrinter
+from PyQt5.QtGui import QPainter
+import datetime
 
 class CreatedExamProgramPage(QWidget):
     def __init__(self, user_info: dict, parent=None):
@@ -34,19 +36,18 @@ class CreatedExamProgramPage(QWidget):
         self.scroll_area.setWidget(self.scroll_content)
         self.main_layout.addWidget(self.scroll_area)
         self.get_excel_btn = None
+        self.pdf_button = None
 
     def add_exam_program(self, result_data: dict):
         self.exam_schedule = result_data.get("exam_schedule", [])
         failed_classes = result_data.get("failed_classes", [])
         stats = result_data.get("statistics", {})
 
-        # Önceki içeriği temizle
         for i in reversed(range(self.scroll_layout.count())):
             widget = self.scroll_layout.itemAt(i).widget()
             if widget:
                 widget.deleteLater()
 
-        # İstatistikler
         stats_frame = QFrame()
         stats_frame.setStyleSheet("""
             QFrame { background-color: rgba(0, 255, 100, 0.08); border: 1px solid rgba(0,255,100,0.3); border-radius: 10px; padding: 10px; }
@@ -163,21 +164,37 @@ class CreatedExamProgramPage(QWidget):
             """)
             self.get_excel_btn.clicked.connect(self.download_excel)
             self.main_layout.addWidget(self.get_excel_btn, alignment=Qt.AlignCenter)
+            
+        if not self.pdf_button:
+            self.pdf_button = QPushButton("📄 Oturma Planını PDF Olarak Dışa Aktar")
+            self.pdf_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #2196F3;
+                    color: white;
+                    padding: 10px;
+                    border: none;
+                    border-radius: 5px;
+                    font-size: 14px;
+                }
+                QPushButton:hover {
+                    background-color: #0b7dda;
+                }
+            """)
+            self.pdf_button.clicked.connect(self.handle_export_pdf)
+            self.main_layout.addWidget(self.pdf_button, alignment=Qt.AlignCenter)
     
-    # --- YENİ EKLENEN FONKSİYON ---
     def toggle_seating_plan_visibility(self, button: QPushButton, container: QWidget, plan_data: dict):
-        """Butona tıklandığında oturma planı konteynerini gösterir/gizler."""
         if container.isVisible():
             container.setVisible(False)
             button.setText("▼ Oturma Planı Göster")
         else:
-            # Eğer konteynerin içi boşsa (ilk tıklama), planı oluştur
             if not container.layout():
                 container_layout = QVBoxLayout(container)
                 container_layout.setSpacing(15)
 
                 for room_name, student_grid in plan_data.items():
-                    if not student_grid: continue
+                    if not student_grid: 
+                        continue
 
                     room_frame = QFrame()
                     room_frame.setStyleSheet("QFrame { border: 1px solid #444; border-radius: 5px; }")
@@ -232,3 +249,21 @@ class CreatedExamProgramPage(QWidget):
             QMessageBox.information(self, "Başarılı", f"Sınav programı '{filename}' olarak başarıyla kaydedildi.")
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"Dosya kaydedilirken bir hata oluştu:\n{e}")
+            
+    def handle_export_pdf(self):
+            if not self.exam_schedule:
+                QMessageBox.warning(self, "Uyarı", "PDF'e aktarılacak bir oturma planı bulunmuyor.")
+                return
+
+            options = QFileDialog.Options()
+            filename, _ = QFileDialog.getSaveFileName(self, "Oturma Planını PDF Olarak Kaydet", "oturma_planlari.pdf", "PDF Dosyaları (*.pdf);;Tüm Dosyalar (*)", options=options)
+
+            if filename:
+                if not filename.lower().endswith('.pdf'):
+                    filename += '.pdf'
+                
+                success = self.export_all_seating_plans_to_pdf(self.exam_schedule, filename)
+                if success:
+                    QMessageBox.information(self, "Başarılı", f"Tüm oturma planları başarıyla\n'{filename}'\ndosyasına kaydedildi.")
+                else:
+                    QMessageBox.critical(self, "Hata", "PDF oluşturulurken bir hata meydana geldi.")
