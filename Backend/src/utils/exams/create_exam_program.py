@@ -87,6 +87,8 @@ def create_exam_schedule(
     statistics['total_classes'] = len(class_dict)
     statistics['failed_classes'] = len(failed_classes)
     statistics['successful_classes'] = statistics['total_classes'] - statistics['failed_classes']
+
+    exam_schedule = create_seating_plan(exam_schedule)
         
     return {
         "exam_schedule": exam_schedule,
@@ -288,3 +290,31 @@ def float_to_time_str(hour_float: float) -> str:
     hour = int(hour_float)
     minute = int(round((hour_float - hour) * 60))
     return f"{hour:02d}:{minute:02d}"
+
+
+def create_seating_plan(exam_schedule: List[dict]) -> dict:
+
+    for day in exam_schedule:
+        date = day.get("date", "-")
+        exams = day.get("exams", [])
+
+        for exam in exams:
+            classes = exam.get("classes", [])
+            for cls in classes:
+                classrooms = [r.get("classroom_name", "-") for r in cls.get("classrooms", [])]
+                print(f'{cls.get("name", "-")} has a {len(cls.get("students", "-"))}, in rooms: {", ".join(classrooms)}')
+
+                def seperate_students(students, classrooms):
+                    for room in classrooms:
+                        yield students[0:room['capacity']]
+                        students = students[room['capacity']:]
+
+                students = cls.get("students", []).copy()
+                random.shuffle(students)
+                cls['seating_plan'] = {}
+
+                for room, students in zip(classrooms, seperate_students(students, classrooms)):
+                    cls['seating_plan'][room['classroom_name']] = students
+                    print(f'{room["classroom_name"]} has {len(students)} students')
+
+    return exam_schedule

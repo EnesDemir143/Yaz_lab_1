@@ -115,6 +115,24 @@ class CreatedExamProgramPage(QWidget):
                             )
                             exam_label.setWordWrap(True)
                             exam_label.setStyleSheet("color: white; font-size: 12px;")
+
+                            seating_plan_btn = QPushButton("Oturma Planı")
+                            seating_plan_btn.setStyleSheet("""
+                            QPushButton {
+                            background-color: #4CAF50;
+                            color: white;
+                            padding: 10px;
+                            border: none;
+                            border-radius: 5px;
+                            font-size: 14px;
+                            }
+                            QPushButton:hover {
+                            background-color: #45a049;
+                            }
+                            """)
+
+                            seating_plan_btn.clicked.connect(self.get_seating_plan)
+
                             day_layout.addWidget(exam_label)
 
                 self.scroll_layout.addWidget(day_frame)
@@ -167,3 +185,6 @@ class CreatedExamProgramPage(QWidget):
             exam_schedule=self.exam_schedule,
             filename="exam_schedule.xlsx"
         )
+
+    def get_seating_plan(self):
+        pass
