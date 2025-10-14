@@ -21,7 +21,6 @@ def create_exam_schedule(
     first_date = datetime.fromisoformat(first_date_str)
     last_date = datetime.fromisoformat(last_date_str)
 
-    
     exam_schedule = []
     current_date = first_date
     while current_date <= last_date:
@@ -43,6 +42,7 @@ def create_exam_schedule(
                 'id': class_id,
                 'name': info.get('class_name', ''),
                 'year': year,
+                'instructor': info.get('instructor', 'N/A'),
                 "students": info.get('students', []),
                 'student_count': len(info.get('students', []))
             }
@@ -123,6 +123,7 @@ def insert_class_to_program(
     year = class_data['year']
     student_count = class_data['student_count']
     students = class_data.get('students', [])
+    instructor = class_data.get('instructor', 'N/A')
 
     has_exam_conflict = exam_program.get_exam_conflict()
     start_time = exam_program.get_start_time()
@@ -145,6 +146,7 @@ def insert_class_to_program(
                     "year": year,
                     "student_count": student_count,
                     "students": students,
+                    "instructor": instructor,
                     "duration": exam_time,
                     "classrooms": [],
                     "start_time": start_time,
@@ -174,6 +176,7 @@ def insert_class_to_program(
                     "year": year,
                     "student_count": student_count,
                     "students": students,
+                    "instructor": instructor,
                     "duration": exam_time,
                     "classrooms": classroom,
                     "start_time": exam["end_time"],
@@ -217,6 +220,7 @@ def insert_class_to_program(
                         "year": year,
                         "student_count": student_count,
                         "students": students,
+                        "instructor": instructor,
                         "duration": exam_time,
                         "classrooms": classroom,
                         "start_time": exam["classes"][0]["start_time"],
@@ -276,35 +280,82 @@ def _students_conflict(class1: dict, class2: dict) -> bool:
 
     return not students1.isdisjoint(students2)
 
-def download_exam_schedule(exam_schedule: List[dict], filename: str):
-    rows = []
 
+
+def download_exam_schedule(exam_schedule: List[dict], filename: str):
+
+    rows = []
     for day in exam_schedule:
         date = day.get("date", "-")
         exams = day.get("exams", [])
         for exam in exams:
-            classes = exam.get("classes", [])
-            for cls in classes:
-                start_time = cls.get("start_time", "-")
-                end_time = cls.get("end_time", "-")
-                class_name = cls.get("name", "-")
-                year = cls.get("year", "-")
-                student_count = cls.get("student_count", 0)
-                classrooms = [r.get("classroom_name", "-") for r in cls.get("classrooms", [])]
+            for cls in exam.get("classes", []):
+                instructor = cls.get("instructor", "N/A")
 
                 rows.append({
                     "Tarih": date,
-                    "Başlangıç Saati": float_to_time_str(start_time),
-                    "Bitiş Saati": float_to_time_str(end_time),
-                    "Ders Adı": class_name,
-                    "Sınıf Yılı": year,
-                    "Öğrenci Sayısı": student_count,
-                    "Sınıflar": ", ".join(classrooms)
+                    "Sınav Saati": float_to_time_str(cls.get("start_time", "-")),
+                    "Ders Adı": cls.get("name", "-"),
+                    "Öğretim Elemanı": instructor,
+                    "Derslik": ", ".join([r.get("classroom_name", "-") for r in cls.get("classrooms", [])])
                 })
 
+    if not rows:
+        print("Sınav programında yazdırılacak veri bulunmuyor.")
+        return
+
     df = pd.DataFrame(rows)
-    df.to_excel(filename, index=False)
-    print(f"Sınav programı '{filename}' dosyasına kaydedildi.")
+
+    writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+    sheet_name = 'Vize Sınav Programı'
+    
+    df.to_excel(writer, sheet_name=sheet_name, startrow=2, header=False, index=False)
+
+    workbook  = writer.book
+    worksheet = writer.sheets[sheet_name]
+
+    title_format = workbook.add_format({
+        'bold': True, 'font_size': 14, 'align': 'center', 'valign': 'vcenter',
+        'bg_color': '#F8CBAD', 'border': 1
+    })
+    header_format = workbook.add_format({
+        'bold': True, 'align': 'center', 'valign': 'vcenter',
+        'bg_color': '#F8CBAD', 'border': 1, 'text_wrap': True
+    })
+    cell_format = workbook.add_format({'border': 1, 'valign': 'vcenter'})
+    center_cell_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter'})
+
+    num_cols = len(df.columns)
+    worksheet.merge_range(0, 0, 0, num_cols - 1, 'BİLGİSAYAR MÜHENDİSLİĞİ BÖLÜMÜ VİZE SINAV PROGRAMI', title_format)
+    worksheet.set_row(0, 30)  # Başlık satırının yüksekliği
+
+    header_data = [{"header": col} for col in df.columns]
+    worksheet.write_row(1, 0, df.columns, header_format)
+    worksheet.set_column('A:A', 15)  # Tarih
+    worksheet.set_column('B:B', 15)  # Sınav Saati
+    worksheet.set_column('C:C', 45)  # Ders Adı
+    worksheet.set_column('D:D', 35)  # Öğretim Elemanı
+    worksheet.set_column('E:E', 35)  # Derslik
+
+
+    date_groups = df.groupby((df['Tarih'] != df['Tarih'].shift()).cumsum())
+    start_row = 2  
+    for _, group in date_groups:
+        if len(group) > 1:
+            end_row = start_row + len(group) - 1
+            worksheet.merge_range(start_row, 0, end_row, 0, group['Tarih'].iloc[0], center_cell_format)
+        
+        worksheet.conditional_format(start_row, 0, start_row + len(group) - 1, num_cols - 1,
+                                     {'type': 'no_blanks', 'format': cell_format})
+        worksheet.conditional_format(start_row, 0, start_row + len(group) - 1, 0,
+                                     {'type': 'no_blanks', 'format': center_cell_format})
+        worksheet.conditional_format(start_row, 0, start_row + len(group) - 1, 1,
+                                     {'type': 'no_blanks', 'format': center_cell_format})
+
+        start_row += len(group)
+
+    writer.close()
+    print(f"Sınav programı '{filename}' dosyasına başarıyla kaydedildi.")
 
 
 def float_to_time_str(hour_float: float) -> str:

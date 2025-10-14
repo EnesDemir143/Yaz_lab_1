@@ -138,7 +138,7 @@ def classes_with_years(user: User = Depends(require_coordinator)):
     class_dict = {}
 
     try:
-        classes_list, status, msg = class_list_menu(user.department, years=True)
+        classes_list, status, msg = class_list_menu(user.department, years_and_instructor=True)
 
         if status == 'error':
             return {
@@ -156,6 +156,7 @@ def classes_with_years(user: User = Depends(require_coordinator)):
                     'class_id': class_id,
                     'class_name': cls['class_name'],
                     'year': cls.get('year', []),
+                    'instructor': cls.get('teacher', ''),
                     'students': []
                 }
 
