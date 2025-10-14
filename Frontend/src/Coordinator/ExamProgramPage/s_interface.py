@@ -27,7 +27,7 @@ class ExamProgramPage(QWidget):
         self.saved_pazar = False
         self.saved_sinav_turu = "Vize"
         self.saved_varsayilan_sure = 75
-        self.saved_istisna_ders = None
+        self.saved_istisna_ders = {}
         self.saved_istisna_sure = 60
         self.saved_bekleme = 15
         self.exam_conflict = False 
@@ -157,10 +157,6 @@ class ExamProgramPage(QWidget):
             elif self.current_step == 4:
                 if hasattr(self, 'spin_default') and self.spin_default:
                     self.saved_varsayilan_sure = self.spin_default.value()
-                if hasattr(self, 'combo_istisna_ders') and self.combo_istisna_ders:
-                    self.saved_istisna_ders = self.combo_istisna_ders.currentData()
-                if hasattr(self, 'spin_istisna') and self.spin_istisna:
-                    self.saved_istisna_sure = self.spin_istisna.value()
             
             elif self.current_step == 5:
                 if hasattr(self, 'spin_bekleme') and self.spin_bekleme:
@@ -353,12 +349,6 @@ class ExamProgramPage(QWidget):
         kalan_dersler = [d for d in self.dersler if d not in self.excluded_courses]
         for ders in kalan_dersler:
             self.combo_istisna_ders.addItem(ders, ders)
-        
-        # Önceden seçili değeri geri yükle
-        if self.saved_istisna_ders:
-            index = self.combo_istisna_ders.findData(self.saved_istisna_ders)
-            if index >= 0:
-                self.combo_istisna_ders.setCurrentIndex(index)
 
         self.combo_istisna_ders.setCursor(Qt.PointingHandCursor)
         self.combo_istisna_ders.setMinimumHeight(35)
@@ -374,6 +364,34 @@ class ExamProgramPage(QWidget):
         self.spin_istisna.setMinimumHeight(35)
         self.content_layout.addWidget(self.spin_istisna)
         self.content_layout.addStretch()
+        
+        self.combo_istisna_ders.currentIndexChanged.connect(self.guncelle_istisna_suresi_gorunumu)
+        self.spin_istisna.valueChanged.connect(self.kaydet_istisna_suresi)
+    
+        self.guncelle_istisna_suresi_gorunumu(self.combo_istisna_ders.currentIndex())
+
+    def guncelle_istisna_suresi_gorunumu(self, index):
+        secili_ders = self.combo_istisna_ders.currentData()
+        
+        if secili_ders in self.saved_istisna_ders:
+            self.spin_istisna.blockSignals(True)
+            self.spin_istisna.setValue(self.saved_istisna_ders[secili_ders])
+            self.spin_istisna.blockSignals(False)
+        else:
+            self.spin_istisna.blockSignals(True)
+            self.spin_istisna.setValue(self.spin_default.value())
+            self.spin_istisna.blockSignals(False)
+
+    def kaydet_istisna_suresi(self, yeni_sure):
+        secili_ders = self.combo_istisna_ders.currentData()
+        
+        if secili_ders:
+            if yeni_sure == self.spin_default.value():
+                if secili_ders in self.saved_istisna_ders:
+                    del self.saved_istisna_ders[secili_ders]
+            else:
+                self.saved_istisna_ders[secili_ders] = yeni_sure
+            
 
     def load_step_5(self):
         self.clear_content()
@@ -442,10 +460,11 @@ class ExamProgramPage(QWidget):
             self.exam_program.set_sinav_turu(self.saved_sinav_turu)
 
             self.exam_program.set_varsayilan_sure(self.saved_varsayilan_sure)
-            if self.saved_istisna_ders:
-                self.exam_program.set_istisna_ders(self.saved_istisna_ders, self.saved_istisna_sure)
 
-            # Bekleme süresi
+            if self.saved_istisna_ders:
+                for ders, sure in self.saved_istisna_ders.items():
+                    self.exam_program.set_istisna_ders(ders, sure)
+
             self.exam_program.set_bekleme_suresi(self.saved_bekleme)
 
             self.get_class_and_student_worker = GetClasses("classes_with_years", self.user_info)
