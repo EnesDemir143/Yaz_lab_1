@@ -1,5 +1,4 @@
 import math
-
 from Backend.src.utils.exams.ExanProgramClass import ExamProgram
 from typing import List
 from queue import PriorityQueue
@@ -91,7 +90,8 @@ def create_exam_schedule(
     statistics['successful_classes'] = statistics['total_classes'] - statistics['failed_classes']
 
     exam_schedule = create_seating_plan(exam_schedule)
-        
+    print("Oturma planları oluşturuldu.")
+            
     return {
         "exam_schedule": exam_schedule,
         "failed_classes": failed_classes,
@@ -101,14 +101,14 @@ def create_exam_schedule(
 def _find_all_combinations(classrooms: List[dict]) -> List[List[dict]]:
     n = len(classrooms)
     all_combinations = []
-    
-    for r in range(1, n + 1):
-        comb_list = list(itertools.combinations(classrooms, r))
+
+    MAX_COMBINATION_SIZE = 5
+
+    for r in range(1, min(n, MAX_COMBINATION_SIZE) + 1):
+        comb_list = [list(c) for c in itertools.combinations(classrooms, r)]
         print(f"{r} öğeli kombinasyonlar: {len(comb_list)} adet")
-        print(comb_list)
-        
         all_combinations.extend(comb_list)
-        
+
     return all_combinations
         
 def insert_class_to_program(
@@ -228,14 +228,7 @@ def insert_class_to_program(
     print(f"⚠️ '{class_name}' için hiçbir gün/slotta uygun yer bulunamadı.")
     return False
 
-
-import math
-from queue import PriorityQueue
-from typing import List
-
-
-def find_suitable_classroom(all_classroom_combs, student_count: int, not_suitable_classrooms: List = []) -> List[
-                                                                                                                dict] | None:
+def find_suitable_classroom(all_classroom_combs, student_count: int, not_suitable_classrooms: List = []) -> List[dict] | None:
     suitable_combinations = PriorityQueue()
     counter = 0
 
@@ -246,7 +239,7 @@ def find_suitable_classroom(all_classroom_combs, student_count: int, not_suitabl
         for room in combination:
             desks_per_row = room['desks_per_row']
             desks_per_column = room['desks_per_column']
-            desk_structure = room['desk_structure']
+            desk_structure = int(room['desk_structure'])
 
             row_capacity = 0
 
@@ -261,8 +254,10 @@ def find_suitable_classroom(all_classroom_combs, student_count: int, not_suitabl
                 leftovers = desks_per_row % 3
                 row_capacity = (num_groups * 2) + leftovers
             total_capacity += row_capacity * desks_per_column
+            print(f"Sınıf '{room['classroom_name']}' kapasitesi: {row_capacity * desks_per_column}")
         priority = (len(combination), total_capacity - student_count)
-
+        print(f"Kombinasyon: {[r['classroom_name'] for r in combination]}, Toplam Kapasite: {total_capacity}, Öğrenci Sayısı: {student_count}")
+    
         if total_capacity >= student_count and not any(n in not_suitable_classrooms for n in comb_room_names):
             suitable_combinations.put((priority, counter, combination))
             counter += 1
@@ -317,28 +312,47 @@ def float_to_time_str(hour_float: float) -> str:
     minute = int(round((hour_float - hour) * 60))
     return f"{hour:02d}:{minute:02d}"
 
+def print_plan(plan, room):
+    if not plan: return
+    max_col = max(key[1] for key in plan.keys())
+    max_row = room['desks_per_column']
+    
+    print(f"\n--- OTURMA PLANI (Yapı: {room['desk_structure']}'li - DÜZELTİLMİŞ) ---")
+    for r in range(max_row):
+        row_str = ""
+        for c in range(max_col + 1):
+            cell = plan.get((r, c))
+            if cell is None: row_str += "[  BOŞ  ] "
+            elif cell == 'AISLE': row_str += " |KORİDOR| "
+            else: row_str += f"[{str(cell):^7}] "
+        print(row_str)
 
 def create_seating_plan(exam_schedule: List[dict]) -> dict:
-
     for day in exam_schedule:
-        date = day.get("date", "-")
         exams = day.get("exams", [])
-
         for exam in exams:
             classes = exam.get("classes", [])
             for cls in classes:
-                classrooms = [r.get("classroom_name", "-") for r in cls.get("classrooms", [])]
-                print(f'{cls.get("name", "-")} has a {len(cls.get("students", "-"))}, in rooms: {", ".join(classrooms)}')
+                classrooms_full_data = cls.get("classrooms", [])
+                classroom_names = [r.get("classroom_name", "-") for r in classrooms_full_data]
+
+                print(f'{cls.get("name", "-")} sınavı için {len(cls.get("students", []))} öğrenci, şu sınıflarda: {", ".join(classroom_names)}')
 
                 students = cls.get("students", []).copy()
                 random.shuffle(students)
                 cls['seating_plan'] = {}
 
-                for room, students in zip(classrooms, seperate_students(students, classrooms)):
-                    student_grid = adjust_seating_plan(room, students)
-                    cls['seating_plan'][room['classroom_name']] = tuple(student_grid.items())
+                student_chunks = seperate_students(students, classrooms_full_data)
 
-                    print(f'{room["classroom_name"]} has {len(students)} students')
+                for room_data, student_chunk in zip(classrooms_full_data, student_chunks):
+                    student_grid = adjust_seating_plan(room_data, student_chunk)
+
+                    room_name = room_data.get("classroom_name", "Bilinmeyen")
+                    print(f'Seating plan for {room_name}:')
+                    print_plan(student_grid, room_data)
+                    cls['seating_plan'][room_name] = student_grid
+
+                    print(f'{room_name} has {len(student_chunk)} students')
 
     return exam_schedule
 
@@ -347,7 +361,7 @@ def seperate_students(students, classrooms):
     for room in classrooms:
         desks_per_row = room['desks_per_row']
         desks_per_column = room['desks_per_column']
-        desk_structure = room['desk_structure']
+        desk_structure = int(room['desk_structure'])
 
         row_capacity = 0
 
@@ -369,7 +383,7 @@ def seperate_students(students, classrooms):
 
 def adjust_seating_plan(room, students):
     student_grid = {}
-    desk_structure = room['desk_structure']
+    desk_structure = int(room['desk_structure'])
     num_rows = room['desks_per_column']
     num_desk_cols = room['desks_per_row']
 
