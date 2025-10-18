@@ -31,6 +31,24 @@ def process_class_list(df: pd.DataFrame, department, strict: bool = True) -> pd.
 
             block.columns = ["class_id", "class_name", "teacher"]
 
+            # --- 🔽 ÖNCE özel/başlık/boş satırları ayıkla (doğrulamadan ÖNCE) ---
+            # 1) "Seçmeli/Seçimlik" satırını düşür ve is_optional ata
+            secmeli_mask = block["class_id"].astype(str).str.contains("Seçimlik|Seçmeli", case=False, na=False)
+            if secmeli_mask.any():
+                secmeli_index = secmeli_mask.idxmax()
+                block = block.drop(secmeli_index)
+                block["is_optional"] = False
+                block.loc[block.index >= secmeli_index, "is_optional"] = True
+            else:
+                block["is_optional"] = False
+
+            # 2) "class_id/class_name/teacher/DERS KODU" başlık benzeri satırları ele
+            block = block[~block["class_id"].isin(['class_id', 'class_name', 'teacher', 'DERS KODU'])]
+
+            # 3) Tamamen boş/whitespace olan satırları ele
+            block = block[~(block.astype(str).apply(lambda s: s.str.strip()).eq("").all(axis=1))]
+
+            # --- 🔽 ARTIK doğrulama döngüsü (boşluk hataları burada gerçek boş satırlara denk gelirse dursun) ---
             for ridx, r in block.iterrows():
                 for col in ["class_id", "class_name", "teacher"]:
                     try:
@@ -50,15 +68,6 @@ def process_class_list(df: pd.DataFrame, department, strict: bool = True) -> pd.
                                 'status': 'error',
                                 'message': f"Satır {excel_row_no}, sütun '{col}' işlenemedi: {e_row}"
                             }
-
-            secmeli_mask = block["class_id"].astype(str).str.contains("Seçimlik|Seçmeli", case=False, na=False)
-            if secmeli_mask.any():
-                secmeli_index = secmeli_mask.idxmax()
-                block = block.drop(secmeli_index)
-                block["is_optional"] = False
-                block.loc[block.index >= secmeli_index, "is_optional"] = True
-            else:
-                block["is_optional"] = False
 
             block["grade"] = sinif
             block = block[~block["class_id"].isin(['class_id', 'class_name', 'teacher'])]

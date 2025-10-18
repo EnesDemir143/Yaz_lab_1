@@ -1,107 +1,39 @@
 import sys
-import requests
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLineEdit, QPushButton,
     QVBoxLayout, QLabel, QFrame, QGraphicsDropShadowEffect
 )
 from PyQt5.QtGui import QFont, QColor, QIcon
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from Frontend.src.Admin.admin_dashboard import AdminDashboard
+from Frontend.src.Admin.Dashboard.admin_dashboard import AdminDashboard
+from Frontend.src.Coordinator.Dashboard.CoordinatorDashboard import CoordinatorDashboard
+from Frontend.src.Login.loginWorker import LoginWorker
+from Frontend.src.Styles.load_qss import load_stylesheet
 
-LOGIN_API_URL = "http://127.0.0.1:8000/login"
-
-# ---- Worker Thread ----
-class LoginWorker(QThread):
-    finished = pyqtSignal(dict)
-
-    def __init__(self, email, password):
-        super().__init__()
-        self.email = email
-        self.password = password
-
-    def run(self):
-        try:
-            resp = requests.post(LOGIN_API_URL, json={
-                "email": self.email,
-                "password": self.password
-            })
-            if resp.status_code == 200:
-                self.finished.emit(resp.json())
-            else:
-                self.finished.emit({"error": resp.text})
-        except Exception as e:
-            self.finished.emit({"error": str(e)})
-            
-
-# ---- Login Window ----
 class LoginWindow(QWidget):
-    def __init__(self):
+    def __init__(self, controller):
         super().__init__()
+        self.controller = controller
         self.init_ui()
 
     def init_ui(self):
-        # ---- Genel pencere ayarları ----
         self.setWindowTitle("Kullanıcı Giriş Ekranı")
         self.setMinimumSize(800, 500)
-        self.setStyleSheet("""
-            QWidget {
-                background-color: qlineargradient(
-                    spread:pad, x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #1e1e2f, stop:1 #2a2a40
-                );
-            }
-        """)
-
-        # ---- Orta kısımda kart görünümü ----
         self.card = QFrame()
         self.card.setObjectName("card")
-        self.card.setStyleSheet("""
-            QFrame#card {
-                background-color: rgba(255, 255, 255, 0.12);
-                border-radius: 20px;
-                padding: 40px;
-            }
-            QLabel {
-                color: white;
-            }
-            QLineEdit {
-                border: 2px solid rgba(255,255,255,0.3);
-                border-radius: 10px;
-                padding: 10px;
-                background: rgba(255,255,255,0.08);
-                color: white;
-                selection-background-color: #4CAF50;
-            }
-            QLineEdit:focus {
-                border: 2px solid #4CAF50;
-                background: rgba(255,255,255,0.15);
-            }
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                padding: 12px;
-                border: none;
-                border-radius: 10px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """)
+        
+        self.setStyleSheet(load_stylesheet("Frontend/src/Styles/login.qss"))
 
-        # Gölge efekti
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(30)
         shadow.setOffset(0, 0)
         shadow.setColor(QColor(0, 0, 0, 180))
         self.card.setGraphicsEffect(shadow)
 
-        # Başlık
         title = QLabel("Kullanıcı Giriş Paneli")
         title.setFont(QFont("Segoe UI", 22, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
 
-        # Inputlar
         font = QFont("Segoe UI", 12)
         self.email_input = QLineEdit()
         self.email_input.setPlaceholderText("E-posta adresiniz")
@@ -111,13 +43,12 @@ class LoginWindow(QWidget):
         self.password_input.setPlaceholderText("Şifre")
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setFont(font)
+        self.password_input.returnPressed.connect(self.handle_login)
 
-        # Giriş butonu
         self.login_button = QPushButton("Giriş Yap")
         self.login_button.setFont(QFont("Segoe UI", 12, QFont.Bold))
         self.login_button.clicked.connect(self.handle_login)
 
-        # Bilgi etiketi (örnek hata mesajı için)
         self.status_label = QLabel("")
         self.status_label.setFont(QFont("Segoe UI", 10))
         self.status_label.setAlignment(Qt.AlignCenter)
@@ -135,13 +66,11 @@ class LoginWindow(QWidget):
         layout.addWidget(self.status_label)
         self.card.setLayout(layout)
 
-        # Ana layout — kartı ortala
         main_layout = QVBoxLayout(self)
         main_layout.addStretch()
         main_layout.addWidget(self.card, alignment=Qt.AlignCenter)
         main_layout.addStretch()
 
-    # ---- Login işlemi ----
     def handle_login(self):
         email = self.email_input.text().strip()
         password = self.password_input.text().strip()
@@ -159,26 +88,26 @@ class LoginWindow(QWidget):
     def on_login_result(self, result):
         if "error" in result:
             self.status_label.setText("❌ " + result["error"])
-        else:
-            role = result.get("role")
-            self.status_label.setStyleSheet("color: #4CAF50;")
-            if role == "admin":
-                self.status_label.setText("✅ Admin girişi başarılı!")
-                self.dashboard = AdminDashboard({
-                    "name": result.get("email"),
-                    "department": result.get("department")
-                })
-                self.dashboard.show()
-                self.close()
-            elif role == "coordinator":
-                self.status_label.setText("✅ Koordinatör girişi başarılı!")
-            else:
-                self.status_label.setText("✅ Giriş başarılı!")
+            return
 
+        token = result.get("token")
+        role = result.get("role")
 
-# ---- Main ----
+        if not token:
+            self.status_label.setText("⚠️ Sunucudan token alınamadı.")
+            return
+
+        user_info = {
+            "email": result.get("email"),
+            "department": result.get("department"),
+            "role": role,
+            "token": token
+        }
+
+        self.controller.on_login_success(user_info)
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = LoginWindow()
-    window.show()
+    from Frontend.src.Login.app_controller import AppController
+    controller = AppController()
     sys.exit(app.exec_())
