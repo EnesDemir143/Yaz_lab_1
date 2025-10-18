@@ -11,6 +11,7 @@ from Frontend.src.Styles.load_qss import load_stylesheet
 from Frontend.src.Admin.Classroom.clasroomPage import ClassroomPage
 from Frontend.src.Admin.StudentListPage.studentList_page import StudentListPage
 from Frontend.src.Admin.ClassListPage.class_list_page import ClassListPage
+from Frontend.src.Admin.ExamProgramPages.exam_program_interface import ExamProgramPage
 
 class AdminDashboard(QWidget):
     def __init__(self, controller, user_info=None):
@@ -42,6 +43,7 @@ class AdminDashboard(QWidget):
             "🏫 Sınıf Ekle",
             "👨‍🎓 Öğrenci Listesi",
             "📖 Ders Listesi",
+            " Sınav Programı Oluştur"
         ]:
             item = QListWidgetItem(item_text)
             item.setSizeHint(QSize(180, 40))
@@ -88,6 +90,8 @@ class AdminDashboard(QWidget):
         self.student_list_page = StudentListPage(self.user_info, self)
         
         self.class_list_page = ClassListPage(self.user_info, self)
+        
+        self.exam_program_page = ExamProgramPage(self.user_info, self)
 
         self.empty_page = QWidget()
         e_layout = QVBoxLayout()
@@ -104,6 +108,7 @@ class AdminDashboard(QWidget):
         self.stack.addWidget(self.classroom_page)
         self.stack.addWidget(self.student_list_page)
         self.stack.addWidget(self.class_list_page)
+        self.stack.addWidget(self.exam_program_page)
 
         content_layout.addWidget(self.title_label)
         content_layout.addWidget(self.info_label)
@@ -123,6 +128,7 @@ class AdminDashboard(QWidget):
             4: ("insert_classroom", "Sınıf Ekle"),
             5: ("student_list", "Öğrenci Listesi"),
             6: ("class_list", "Ders Listesi"),
+            7: ("exam_program", "Sınav Programı Oluştur")
         }
 
         if index in mapping:

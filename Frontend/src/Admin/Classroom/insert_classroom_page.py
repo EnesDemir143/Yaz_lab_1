@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QTextEdit, QMessageBox, QHBoxLayout
+    QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QTextEdit, QMessageBox, QHBoxLayout, QComboBox
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
@@ -27,7 +27,12 @@ class InsertClassroomPage(QWidget):
         # Form alanları
         self.classroom_id = QLineEdit()
         self.classroom_name = QLineEdit()
-        self.department = QLineEdit()
+        dept_layout = QHBoxLayout()
+        dept_label = QLabel("🏫 Bölüm Seçin:")
+        self.department = QComboBox()
+        self.department.addItems(["Bilgisayar Mühendisliği", "Elektrik Mühendisliği", "Elektronik Mühendisliği", "İnşaat Mühendisliği"])
+        dept_layout.addWidget(dept_label)
+        dept_layout.addWidget(self.department)
         self.capacity = QLineEdit()
         self.desks_row = QLineEdit()
         self.desks_col = QLineEdit()
@@ -75,7 +80,7 @@ class InsertClassroomPage(QWidget):
         data = {
             "classroom_id": self.classroom_id.text(),
             "classroom_name": self.classroom_name.text(),
-            "department_name": self.department.text(),
+            "department_name": self.department.currentText(),
             "capacity": int(self.capacity.text()) if self.capacity.text().isdigit() else 0,
             "desks_per_row": int(self.desks_row.text()) if self.desks_row.text().isdigit() else 0,
             "desks_per_column": int(self.desks_col.text()) if self.desks_col.text().isdigit() else 0,
