@@ -68,7 +68,9 @@ class ExamProgramPage(QWidget):
     
         department_options = QLabel("🏫 Bölüm Seçimi:")
         department_options.setFont(QFont("Arial", 11, QFont.Bold))
-        main_layout.addWidget(department_options)
+        # DÜZELTME: main_layout yerine step_0_layout'a eklendi
+        step_0_layout.addWidget(department_options)
+        
         dept_layout = QHBoxLayout()
         dept_label = QLabel("🏫 Bölüm Seçin:")
         self.department_box = QComboBox()
@@ -76,10 +78,10 @@ class ExamProgramPage(QWidget):
         dept_layout.addWidget(dept_label)
         dept_layout.addWidget(self.department_box)
 
-        main_layout.addLayout(dept_layout)
+        # DÜZELTME: main_layout yerine step_0_layout'a eklendi
+        step_0_layout.addLayout(dept_layout) 
         
-        step_0_layout.addLayout(dept_layout) # main_layout yerine step_0_layout'a ekle
-        
+        # step_0_widget (tüm Adım 0 içeriğiyle birlikte) ana layout'a ekleniyor
         main_layout.addWidget(self.step_0_widget)
 
         self.scroll_area = QScrollArea()
