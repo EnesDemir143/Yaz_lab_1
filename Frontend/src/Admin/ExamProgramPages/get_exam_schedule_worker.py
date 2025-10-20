@@ -2,6 +2,7 @@ import requests
 from PyQt5.QtCore import QThread, pyqtSignal
 
 API_BASE = "http://127.0.0.1:8000/admin"
+API_BASE_COORDINATOR = "http://127.0.0.1:8000/department_coordinator"
 
 class get_schedules(QThread):
     finished = pyqtSignal(dict)
@@ -15,11 +16,14 @@ class get_schedules(QThread):
     def run(self):
         try:
             headers = {"Authorization": f"Bearer {self.user_info['token']}"}
-            url = f"{API_BASE}/{self.endpoint}"
+            
+            if self.department:
+                url = f"{API_BASE_COORDINATOR}/{self.endpoint}"
+            else:
+                url = f"{API_BASE}/{self.endpoint}"
 
             resp = requests.get(url, headers=headers, timeout=30)
             print(f"GET {url} - Status Code: {resp.status_code}")
-            print(f"Response Text: {resp.text}")
             try:
                 result = resp.json()
             except Exception:

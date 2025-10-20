@@ -14,6 +14,7 @@ from Backend.src.services.Utils.check_if_coordinator import require_coordinator
 from Backend.src.DataBase.src.utils.search_classroom import search_classroom as db_search_classroom
 from Backend.src.DataBase.src.utils.delete_classroom import delete_classroom as db_delete_classroom
 from Backend.src.DataBase.src.utils.get_all_classrooms import get_all_classrooms 
+from Backend.src.DataBase.src.utils.read_exam_program import read_exam_schedule_by_department
 import io
 
 router = APIRouter(prefix="/department_coordinator", tags=["department_coordinator"])
@@ -267,3 +268,10 @@ def insert_exam_schedule_db(exam_schedule: Any = Body(...), user: User = Depends
         "status": status,
         "message": msg
     }
+
+@router.get("/get_exam_schedule")
+def get_exam_schedule(user: User = Depends(require_coordinator)):
+    
+    result = read_exam_schedule_by_department(user.department)
+    
+    return result

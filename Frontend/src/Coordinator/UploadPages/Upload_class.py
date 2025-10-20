@@ -99,5 +99,5 @@ class UploadClassList(QWidget):
                 self.parent_dashboard.text_output.append(f"✅ {detail}\n")
             QMessageBox.information(self, "Başarılı", f"message: {msg}\n\n{detail}")
 
-        if self.parent_dashboard:
+        if self.parent_dashboard and not self.parent_dashboard.has_schedules:
             self.parent_dashboard.enable_next_step_after_class_upload()

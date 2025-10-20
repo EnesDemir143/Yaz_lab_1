@@ -39,6 +39,7 @@ def read_exam_schedule_by_department(department_name: str | None = None):
                         """, (exam_id,))
                         dep_row = cursor.fetchone()
                         dep_name = dep_row["department_name"] if dep_row else "Bilinmiyor"
+                        print(f"Exam ID: {exam_id}, Department: {dep_name}")
 
                         # Filtre varsa ve eşleşmiyorsa atla
                         if department_name and dep_name != department_name:
@@ -93,8 +94,9 @@ def read_exam_schedule_by_department(department_name: str | None = None):
 
         if department_name:
             if department_name not in all_departments:
-                return {"status": "empty", "message": f"{department_name} için kayıt bulunamadı."}
-            return {"status": "success", "department": department_name, "exam_schedule": all_departments[department_name]}
+                return {"status": "empty", "message": f"{department_name} için kayıt bulunamadı." , "exam_schedule": {}}
+            all_departments = {department_name: all_departments[department_name]}
+            return {"status": "success", "message": f"{department_name} için kayıt bulundu.", "exam_schedule": all_departments}
 
         return {"status": "success", "departments": all_departments, "message": "Tüm departmanlar için exam schedule başarıyla okundu."}
 

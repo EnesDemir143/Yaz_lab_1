@@ -21,6 +21,7 @@ class ExamProgramPage(QWidget):
         self.dersler = []
         self.excluded_courses = set() 
         self.current_step = 1
+        self.active_threads = []
         
         self.saved_start_date = None
         self.saved_end_date = None
