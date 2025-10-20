@@ -283,7 +283,6 @@ class ExamProgramPage(QWidget):
         self.content_layout.addWidget(info)
         self.content_layout.addSpacing(10)
 
-        # Dersler daha önce yüklenmemişse veya bölüm değişmişse yükle
         if not self.dersler or self.selected_department != department:
             loading_label = QLabel(f"📚 {department} bölümü için dersler yükleniyor...")
             self.content_layout.addWidget(loading_label)

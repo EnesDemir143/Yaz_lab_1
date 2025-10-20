@@ -36,8 +36,15 @@ class SearchClassroomPage(QWidget):
         self.back_btn = QPushButton("⬅️ Geri Dön")
         btn_layout.addWidget(self.back_btn)
         btn_layout.addWidget(self.search_btn)
+        self.set_classroom_btn = QPushButton("Derslik Bilgilerini Ayarla")
+        self.set_classroom_btn.clicked.connect(
+            lambda: self.set_classroon_fields({
+                "classroom_code": self.classroom_code_input.text().strip()
+            })
+        )
+        btn_layout.addWidget(self.set_classroom_btn)
         layout.addLayout(btn_layout)
-
+        
         self.result = QTextEdit()
         self.result.setReadOnly(True)
         layout.addWidget(self.result)
@@ -173,3 +180,14 @@ class SearchClassroomPage(QWidget):
                     break
             if current_person > total_capacity:
                 break
+            
+    def set_classroon_fields(self, classroom_data: dict):
+        from Frontend.src.Coordinator.Classroom.upload_classroom_page import UploadClassroomPage
+        classroom_id = classroom_data.get("classroom_code", "").strip()
+        if not classroom_id:
+            QMessageBox.warning(self, "Uyarı", "Lütfen geçerli bir derslik kodu girin.")
+            return
+
+        upload_page = UploadClassroomPage(self.parent_stack, self.user_info, classroom_id, self.dashboard)
+        self.parent_stack.addWidget(upload_page)
+        self.parent_stack.setCurrentWidget(upload_page)
