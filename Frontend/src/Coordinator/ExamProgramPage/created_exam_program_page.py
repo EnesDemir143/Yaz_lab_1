@@ -7,6 +7,25 @@ from Backend.src.utils.exams.create_exam_program import float_to_time_str, downl
 from PyQt5.QtPrintSupport import QPrinter
 from PyQt5.QtGui import QPainter
 import datetime
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+from reportlab.lib.units import cm 
+
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.styles import ParagraphStyle 
+
+FONT_NAME = '../../../../dejavu-sans.book.ttf'
+FONT_NAME_BOLD = '../../../../DejaVuSans-Bold.ttf'
+
+try:
+    pdfmetrics.registerFont(TTFont(FONT_NAME, 'DejaVuSans.ttf'))
+    pdfmetrics.registerFont(TTFont(FONT_NAME_BOLD, 'DejaVuSans-Bold.ttf'))
+except Exception as e:
+    print(f"--- FONT YÜKLENEMEDİ UYARISI ---")
+    print(f"Hata: {e}")
 
 class CreatedExamProgramPage(QWidget):
     def __init__(self, user_info: dict, parent=None):
@@ -115,6 +134,22 @@ class CreatedExamProgramPage(QWidget):
                         exam_info_layout.addWidget(plan_container)
 
                         seating_plan_data = cls.get('seating_plan', {})
+                        
+                        
+                        download_pdf_button = QPushButton("📄 PDF Olarak İndir")
+                        download_pdf_button.setCursor(Qt.PointingHandCursor)
+                        download_pdf_button.setStyleSheet("QPushButton { background-color: #2d71b8; border: none; border-radius: 4px; padding: 5px; font-size: 11px; color: white; } QPushButton:hover { background-color: #3a82c9; }")
+                        exam_info_layout.addWidget(download_pdf_button)
+                        
+                        download_pdf_button.clicked.connect(
+                            lambda checked, exam_name=cname, plan_data=seating_plan_data: 
+                            self.create_seating_plan_pdf(
+                                filename=f"{exam_name}_oturma_plani.pdf", 
+                                exam_name=exam_name, 
+                                plan_data=plan_data
+                            )
+                        )
+                        
                         toggle_button.clicked.connect(
                             lambda checked, btn=toggle_button, container=plan_container, data=seating_plan_data: 
                             self.toggle_seating_plan_visibility(btn, container, data)
@@ -165,23 +200,7 @@ class CreatedExamProgramPage(QWidget):
             self.get_excel_btn.clicked.connect(self.download_excel)
             self.main_layout.addWidget(self.get_excel_btn, alignment=Qt.AlignCenter)
             
-        if not self.pdf_button:
-            self.pdf_button = QPushButton("📄 Oturma Planını PDF Olarak Dışa Aktar")
-            self.pdf_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #2196F3;
-                    color: white;
-                    padding: 10px;
-                    border: none;
-                    border-radius: 5px;
-                    font-size: 14px;
-                }
-                QPushButton:hover {
-                    background-color: #0b7dda;
-                }
-            """)
-            self.pdf_button.clicked.connect(self.handle_export_pdf)
-            self.main_layout.addWidget(self.pdf_button, alignment=Qt.AlignCenter)
+
     
     def toggle_seating_plan_visibility(self, button: QPushButton, container: QWidget, plan_data: dict):
         if container.isVisible():
@@ -191,7 +210,7 @@ class CreatedExamProgramPage(QWidget):
             if not container.layout():
                 container_layout = QVBoxLayout(container)
                 container_layout.setSpacing(15)
-
+                
                 for room_name, student_grid in plan_data.items():
                     if not student_grid: 
                         continue
@@ -249,21 +268,138 @@ class CreatedExamProgramPage(QWidget):
             QMessageBox.information(self, "Başarılı", f"Sınav programı '{filename}' olarak başarıyla kaydedildi.")
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"Dosya kaydedilirken bir hata oluştu:\n{e}")
-            
-    def handle_export_pdf(self):
-            if not self.exam_schedule:
-                QMessageBox.warning(self, "Uyarı", "PDF'e aktarılacak bir oturma planı bulunmuyor.")
-                return
-
-            options = QFileDialog.Options()
-            filename, _ = QFileDialog.getSaveFileName(self, "Oturma Planını PDF Olarak Kaydet", "oturma_planlari.pdf", "PDF Dosyaları (*.pdf);;Tüm Dosyalar (*)", options=options)
-
-            if filename:
-                if not filename.lower().endswith('.pdf'):
-                    filename += '.pdf'
                 
-                success = self.export_all_seating_plans_to_pdf(self.exam_schedule, filename)
-                if success:
-                    QMessageBox.information(self, "Başarılı", f"Tüm oturma planları başarıyla\n'{filename}'\ndosyasına kaydedildi.")
-                else:
-                    QMessageBox.critical(self, "Hata", "PDF oluşturulurken bir hata meydana geldi.")
+    def create_seating_plan_pdf(self, filename: str, exam_name: str, plan_data: dict):        
+        # PDF dökümanını yatay (landscape) A4 olarak ayarla
+        doc = SimpleDocTemplate(filename, pagesize=landscape(A4),
+                                leftMargin=1.5*cm, rightMargin=1.5*cm,
+                                topMargin=1.5*cm, bottomMargin=1.5*cm)
+        
+        # PDF'e eklenecek 'story' (hikaye) elementleri
+        story = []
+
+        # Paragraf Stilleri
+        styles = {
+            'MainTitle': ParagraphStyle(
+                name='MainTitle', 
+                fontName=FONT_NAME_BOLD, 
+                fontSize=16, 
+                alignment=1, # 1 = CENTER
+                spaceAfter=10
+            ),
+            'RoomTitle': ParagraphStyle(
+                name='RoomTitle', 
+                fontName=FONT_NAME_BOLD, 
+                fontSize=12, 
+                spaceAfter=6, 
+                spaceBefore=10
+            ),
+            'CellName': ParagraphStyle(
+                name='CellName', 
+                fontName=FONT_NAME, 
+                fontSize=8, 
+                alignment=1, # CENTER
+                leading=10 # Satır yüksekliği
+            ),
+            'CellID': ParagraphStyle(
+                name='CellID', 
+                fontName=FONT_NAME, 
+                fontSize=7, 
+                alignment=1, # CENTER
+                leading=8
+            ),
+            'CellEmpty': ParagraphStyle(
+                name='CellEmpty', 
+                fontName=FONT_NAME, 
+                fontSize=8, 
+                alignment=1, # CENTER
+                textColor=colors.grey, 
+                leading=10
+            ),
+        }
+
+        # Ana Başlık
+        story.append(Paragraph(f"Sınav Oturma Planı: {exam_name}", styles['MainTitle']))
+        story.append(Spacer(1, 0.5 * cm))
+
+        first_room = True
+        for room_name, student_grid in plan_data.items():
+            
+            # İlk derslik hariç her derslik için yeni sayfa
+            if not first_room:
+                story.append(PageBreak())
+            first_room = False
+
+            # Derslik Başlığı
+            story.append(Paragraph(f"Derslik: {room_name}", styles['RoomTitle']))
+
+            if not student_grid:
+                story.append(Paragraph("Bu derslik için oturma planı verisi bulunmuyor.", styles['CellEmpty']))
+                continue
+
+            # Grid boyutlarını bul (en büyük satır ve sütun numarası)
+            max_row = max((key[0] for key in student_grid.keys()), default=-1)
+            max_col = max((key[1] for key in student_grid.keys()), default=-1)
+
+            # reportlab Table için 2D liste oluştur
+            table_data = []
+            for r in range(max_row + 1):
+                row_data = []
+                for c in range(max_col + 1):
+                    cell_content = student_grid.get((r, c))
+                    
+                    cell_element = []
+                    if isinstance(cell_content, dict):
+                        # Dolu sıra (Öğrenci var)
+                        name = cell_content.get('name', 'İsim Yok') + " " + cell_content.get('surname', '')
+                        num = cell_content.get('student_num', '???')
+                        
+                        # Hücre içeriğini Paragraf listesi olarak ekle
+                        cell_element = [
+                            Paragraph(name, styles['CellName']),
+                            Paragraph(f"({num})", styles['CellID'])
+                        ]
+                    else:
+                        # Boş sıra (None, 'AISLE' veya diğer durumlar)
+                        cell_element = Paragraph("(BOŞ)", styles['CellEmpty'])
+                    
+                    row_data.append(cell_element)
+                table_data.append(row_data)
+
+            if not table_data:
+                continue
+                
+            # Sayfa genişliğini hesapla
+            page_width, page_height = landscape(A4)
+            usable_width = page_width - (doc.leftMargin + doc.rightMargin)
+            
+            # Sütun genişliğini ayarla (toplam genişliğe göre ölçekle)
+            # Ekran görüntüsündeki gibi 6 sütunlu bir yapı varsayalım
+            num_cols = max_col + 1
+            col_width = usable_width / num_cols
+            
+            # Sütun genişliklerini ayarla (hepsi eşit)
+            col_widths = [col_width] * num_cols
+            # Satır yüksekliklerini ayarla (sabit)
+            row_heights = [1.5 * cm] * (max_row + 1)
+
+            # Tabloyu oluştur
+            t = Table(table_data, colWidths=col_widths, rowHeights=row_heights)
+            
+            # Tablo Stili (ekran görüntüsündeki gibi)
+            table_style = TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black), # Tüm hücrelere grid
+                ('BOX', (0, 0), (-1, -1), 1, colors.black),    # Dış çerçeve
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),        # Dikeyde ortala
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),         # Yatayda ortala
+            ])
+            t.setStyle(table_style)
+            
+            story.append(t)
+
+        # PDF dosyasını oluştur
+        try:
+            doc.build(story)
+            print(f"✅ PDF başarıyla oluşturuldu: {filename}")
+        except Exception as e:
+            print(f"❌ PDF oluşturulurken hata oluştu: {e}")
