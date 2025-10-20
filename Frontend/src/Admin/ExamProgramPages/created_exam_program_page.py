@@ -205,15 +205,30 @@ class CreatedExamProgramPage(QWidget):
                             cell = parsed_grid.get((r, c))
                             label = QLabel()
                             label.setAlignment(Qt.AlignCenter)
-                            label.setFixedSize(60, 40)
+                            label.setFixedSize(45, 28)  
+                            
                             if not cell:
                                 label.setText("BOŞ")
-                                label.setStyleSheet("color: #777; font-size: 10px; background-color: #333; border: 1px solid #444; border-radius: 4px;")
+                                label.setStyleSheet("""
+                                    color: #777;
+                                    font-size: 8px;
+                                    background-color: #333;
+                                    border: 1px solid #444;
+                                    border-radius: 3px;
+                                """)
                             else:
                                 student_no = str(cell.get("student_num", "???"))
                                 label.setText(student_no)
-                                label.setStyleSheet("color: white; font-weight: bold; background-color: #005a03; border: 1px solid #1b851f; border-radius: 4px;")
+                                label.setStyleSheet("""
+                                    color: white;
+                                    font-size: 9px;
+                                    font-weight: bold;
+                                    background-color: #006a03;
+                                    border: 1px solid #1b851f;
+                                    border-radius: 3px;
+                                """)
                             grid_layout.addWidget(label, r, c)
+
 
                     room_layout.addWidget(grid_widget)
                     container_layout.addWidget(room_frame)
@@ -264,8 +279,12 @@ class CreatedExamProgramPage(QWidget):
                 for c in range(max_col + 1):
                     cell = parsed_grid.get((r, c))
                     if cell:
+                        name = cell.get('name', 'İsim Yok') + " " + cell.get('surname', '')
                         num = cell.get("student_num", "???")
-                        cell_elem = [Paragraph(f"{num}", styles['CellName'])]
+                        cell_elem = [
+                            Paragraph(name, styles['CellName']),
+                            Paragraph(f"({num})", styles['CellID'])
+                        ]
                     else:
                         cell_elem = Paragraph("(BOŞ)", styles['CellEmpty'])
                     row_data.append(cell_elem)
