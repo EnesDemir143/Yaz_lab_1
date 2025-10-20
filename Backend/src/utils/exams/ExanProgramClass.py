@@ -13,6 +13,9 @@ class ExamProgram:
         self.start_time = 9.0
         self.end_time = 17.0
         
+    def get_exam_type(self):
+        return self.sinav_turu
+
     def get_start_time(self):
         return self.start_time
     

@@ -1,3 +1,4 @@
+from datetime import datetime
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox,
     QDateEdit, QComboBox, QSpinBox, QPushButton,
@@ -9,7 +10,7 @@ from Frontend.src.Coordinator.ExamProgramPage.exam_program_worker import GetClas
 from Backend.src.utils.exams.ExanProgramClass import ExamProgram
 from Backend.src.utils.exams.create_exam_program import create_exam_schedule
 from Frontend.src.Coordinator.Classroom.classroomReqs import ClassroomRequests
-
+from Frontend.src.Admin.ExamProgramPages.insert_exam_schedule_worker import InsertExamScheduleWorker
 
 class ExamProgramPage(QWidget):
     program_created = pyqtSignal(dict)
@@ -515,6 +516,20 @@ class ExamProgramPage(QWidget):
                 self.get_classroom_worker.quit()
                 self.get_classroom_worker.wait()
                 
+    def make_json_safe(self, data):
+        if isinstance(data, dict):
+            new_dict = {}
+            for k, v in data.items():
+                if isinstance(k, tuple):
+                    k = f"{k[0]},{k[1]}"
+                new_dict[str(k)] = self.make_json_safe(v)
+            return new_dict
+        elif isinstance(data, list):
+            return [self.make_json_safe(i) for i in data]
+        elif isinstance(data, (datetime,)):
+            return data.isoformat()
+        else:
+            return data        
         
     def create_exam_program(self):
         try:
@@ -525,13 +540,12 @@ class ExamProgramPage(QWidget):
             if not self.classrooms_data:
                 raise ValueError("Classroom verileri alınamadı")
             
-            results = create_exam_schedule(
+            self.results = create_exam_schedule(
                 exam_program=self.exam_program,
                 class_dict=self.classes_and_their_students,
                 classrooms=self.classrooms_data,
             )
-            
-            stats = results.get("statistics", {})
+            stats = self.results.get("statistics", {})
             QMessageBox.information(
                 self, "Başarılı",
                 f"✅ Sınav programı başarıyla oluşturuldu!\n\n"
@@ -539,8 +553,31 @@ class ExamProgramPage(QWidget):
                 f"✓ Yerleştirilen: {stats.get('successful_classes')}\n"
                 f"✗ Yerleştirilemeyen: {stats.get('failed_classes')}\n"
             )
+            exam_schedule = self.make_json_safe(self.results['exam_schedule'])
+
+            self.insert_exam_schedule_worker = InsertExamScheduleWorker("insert_exam_schedule_to_db", exam_schedule, self.user_info, role=True)
+            self.insert_exam_schedule_worker.finished.connect(self.handle_insert_exam_schedule)
+            self.active_threads.append(self.insert_exam_schedule_worker)  
+            self.insert_exam_schedule_worker.start()
             
-            self.program_created.emit(results)
             
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"❌ Beklenmeyen hata:\n{str(e)}")
+
+                
+    def handle_insert_exam_schedule(self, response):
+        try:
+            if response.get("status") != "success":
+                QMessageBox.warning(
+                    self, "Uyarı",
+                    f"⚠️ Exam schedule DB ye eklenemedi:\n{response.get('message', 'Bilinmeyen hata')}\n\n")
+                raise Exception("Exam schedule DB ye eklenemedi")
+          
+            self.program_created.emit(self.results)  
+            
+        finally:
+            if hasattr(self, "insert_exam_schedule_worker"):
+                self.insert_exam_schedule_worker.quit()
+                self.insert_exam_schedule_worker.wait()
+                if self.insert_exam_schedule_worker in self.active_threads:
+                    self.active_threads.remove(self.insert_exam_schedule_worker)

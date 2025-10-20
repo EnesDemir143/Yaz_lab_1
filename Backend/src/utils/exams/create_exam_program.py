@@ -7,7 +7,6 @@ from datetime import timedelta, datetime
 import pandas as pd
 import random
 
-
 def create_exam_schedule(
     exam_program: ExamProgram,
     class_dict: dict,
@@ -20,12 +19,16 @@ def create_exam_schedule(
     
     first_date = datetime.fromisoformat(first_date_str)
     last_date = datetime.fromisoformat(last_date_str)
+    
+    exam_type = exam_program.get_exam_type()
+    print("exam_type: ", exam_type, "exam_type type:", type(exam_type))
 
     exam_schedule = []
     current_date = first_date
     while current_date <= last_date:
         exam_schedule.append({
             "date": current_date.strftime("%Y-%m-%d"),
+            "exam_type": exam_type,
             "exams": []
         })
         current_date += timedelta(days=1)

@@ -14,3 +14,4 @@ cryptography
 python-jose[cryptography]
 xlsxwriter
 reportlab
+joblib

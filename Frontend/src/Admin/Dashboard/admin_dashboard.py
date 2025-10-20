@@ -97,8 +97,6 @@ class AdminDashboard(QWidget):
         
         self.created_exam_program_page = CreatedExamProgramPage(self.user_info, self)
         
-        self.exam_program_page.program_created.connect(self.created_exam_program_page.add_exam_program)
-        self.exam_program_page.program_created.connect(self.on_exam_program_created)
 
         self.empty_page = QWidget()
         e_layout = QVBoxLayout()

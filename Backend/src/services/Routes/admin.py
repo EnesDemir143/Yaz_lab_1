@@ -1,6 +1,6 @@
 from Backend.src.DataBase.src.utils.update_classroom import update_classroom as db_update_classroom
 import pandas as pd
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Form, Body
 from Backend.src.DataBase.src.structures.classrooms import Classroom
 from Backend.src.DataBase.src.structures.user import User
 from Backend.src.DataBase.src.utils.class_list_menu import class_list_menu
@@ -14,6 +14,9 @@ from Backend.src.DataBase.src.utils.search_classroom import search_classroom as 
 from Backend.src.DataBase.src.utils.delete_classroom import delete_classroom as db_delete_classroom
 from Backend.src.DataBase.src.utils.get_departments import get_departments as db_get_departments
 from Backend.src.DataBase.src.utils.get_all_classrooms import get_all_classrooms
+from Backend.src.DataBase.src.utils.insert_exam_schedule import insert_exam_schedule 
+from Backend.src.DataBase.src.utils.read_exam_program import read_exam_schedule_by_department 
+from typing import Dict, Any
 import io
 
 
@@ -255,7 +258,7 @@ def exam_classrooms(department: str = Form(...), user: User = Depends(require_ad
                 'detail': msg
             }
             
-        print(f"Fetched {len(classrooms_list)} exam classrooms for department {user.department}")
+        print(f"Fetched {len(classrooms_list)} exam classrooms for department {department}")
         for cls in classrooms_list:
             print(f"Classroom ID: {cls['classroom_id']}, Name: {cls['classroom_name']}, Capacity: {cls['capacity']}")
         
@@ -274,3 +277,24 @@ def exam_classrooms(department: str = Form(...), user: User = Depends(require_ad
             'status': 'error',
             'detail': str(e)
         }
+        
+@router.post("/insert_exam_schedule_to_db")
+def insert_exam_schedule_db(exam_schedule: Any = Body(...), user: User = Depends(require_admin)):
+    print("📥 Raw exam_schedule string alındı")
+    print("type: ", type(exam_schedule))
+    status, msg = insert_exam_schedule(exam_schedule, n_jobs=6)
+    
+    if status == 'error':
+        print("Error while inserting exam schedule to db.")
+        raise ValueError("Error while inserting exam schedule to db.")
+    
+    return {
+        "status": status,
+        "message": msg
+    }
+    
+@router.get("/get_exam_schedules")
+def get_exam_schedules(user: User = Depends(require_admin)):
+
+    result = read_exam_schedule_by_department()
+    return result

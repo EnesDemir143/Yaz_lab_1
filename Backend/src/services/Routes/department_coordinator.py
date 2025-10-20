@@ -1,3 +1,5 @@
+from typing import Any
+from Backend.src.DataBase.src.utils.insert_exam_schedule import insert_exam_schedule
 from Backend.src.DataBase.src.utils.update_classroom import update_classroom as db_update_classroom
 from Backend.src.DataBase.src.utils.class_list_menu import class_list_menu
 from Backend.src.DataBase.src.utils.student_list_menu import student_list_menu
@@ -6,7 +8,7 @@ from Backend.src.DataBase.scripts.student_list_save_from_excel import student_li
 from Backend.src.DataBase.src.utils.insert_classroom import insert_classroom_to_db
 from Backend.src.DataBase.src.structures.classrooms import Classroom
 import pandas as pd
-from fastapi import APIRouter, Depends, Form, UploadFile, File
+from fastapi import APIRouter, Body, Depends, Form, UploadFile, File
 from Backend.src.DataBase.src.structures.user import User
 from Backend.src.services.Utils.check_if_coordinator import require_coordinator
 from Backend.src.DataBase.src.utils.search_classroom import search_classroom as db_search_classroom
@@ -251,3 +253,17 @@ def exam_classrooms(user: User = Depends(require_coordinator)):
             'status': 'error',
             'detail': str(e)
         }
+        
+@router.post("/insert_exam_schedule_to_db")
+def insert_exam_schedule_db(exam_schedule: Any = Body(...), user: User = Depends(require_coordinator)):
+    print("📥 Raw exam_schedule string alındı")
+    status, msg = insert_exam_schedule(exam_schedule, n_jobs=6)
+    
+    if status == 'error':
+        print("Error while inserting exam schedule to db.")
+        raise ValueError("Error while inserting exam schedule to db.")
+    
+    return {
+        "status": status,
+        "message": msg
+    }
