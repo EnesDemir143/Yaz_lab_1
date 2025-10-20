@@ -21,8 +21,8 @@ class ClassroomRequests(QThread):
                 resp = requests.post(url, json=self.data, headers=headers, timeout=30)
             elif self.endpoint in ["search_classroom", "delete_classroom"]:
                 resp = requests.post(url, params=self.data, headers=headers, timeout=30)
-            else:
-                resp = requests.get(url, headers=headers, timeout=30)
+            elif self.endpoint == "exam_classrooms":
+                resp = requests.post(url, data=self.data, headers=headers, timeout=30)
 
             try:
                 result = resp.json()

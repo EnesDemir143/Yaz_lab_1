@@ -13,6 +13,7 @@ from Backend.src.DataBase.src.utils.insert_coordinator import insert_department_
 from Backend.src.DataBase.src.utils.search_classroom import search_classroom as db_search_classroom
 from Backend.src.DataBase.src.utils.delete_classroom import delete_classroom as db_delete_classroom
 from Backend.src.DataBase.src.utils.get_departments import get_departments as db_get_departments
+from Backend.src.DataBase.src.utils.get_all_classrooms import get_all_classrooms
 import io
 
 
@@ -239,3 +240,37 @@ def get_departments(user: User = Depends(require_admin)):
         return {"message": "Error while fetching departments.", 'status': status, 'detail': msg}
     
     return {"departments": departments, "message": "Departments fetched successfully.", 'status': status, 'detail': msg}
+
+@router.post("/exam_classrooms")
+def exam_classrooms(department: str = Form(...), user: User = Depends(require_admin)):
+    try:
+        classrooms_list, status, msg = get_all_classrooms(department)
+        
+        if status == 'error':
+            print(f"Error while fetching exam classrooms: {msg}")
+            return {
+                "classrooms": [],
+                "message": "Error while fetching exam classrooms.",
+                'status': 'error',
+                'detail': msg
+            }
+            
+        print(f"Fetched {len(classrooms_list)} exam classrooms for department {user.department}")
+        for cls in classrooms_list:
+            print(f"Classroom ID: {cls['classroom_id']}, Name: {cls['classroom_name']}, Capacity: {cls['capacity']}")
+        
+        return {
+            "classrooms": classrooms_list,
+            "message": "Exam classrooms fetched successfully.",
+            'status': 'success',
+            'detail': msg
+        }
+        
+    except Exception as e:
+        print(f"Exception while fetching exam classrooms: {e}")
+        return {
+            "classrooms": [],
+            "message": "Error while fetching exam classrooms.",
+            'status': 'error',
+            'detail': str(e)
+        }

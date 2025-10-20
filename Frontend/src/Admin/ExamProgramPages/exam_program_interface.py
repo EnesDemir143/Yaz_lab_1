@@ -570,7 +570,7 @@ class ExamProgramPage(QWidget):
 
                 self.classes_and_their_students = response.get("classes", {})
 
-                self.get_classroom_worker = ClassroomRequests("exam_classrooms", user_info=self.user_info)
+                self.get_classroom_worker = ClassroomRequests("exam_classrooms", {'department': self.selected_department}, self.user_info)
                 self.get_classroom_worker.finished.connect(self.handle_classroom_response)
                 self.get_classroom_worker.start()
 
