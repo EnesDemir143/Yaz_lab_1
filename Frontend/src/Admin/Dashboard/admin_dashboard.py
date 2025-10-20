@@ -12,6 +12,7 @@ from Frontend.src.Admin.Classroom.clasroomPage import ClassroomPage
 from Frontend.src.Admin.StudentListPage.studentList_page import StudentListPage
 from Frontend.src.Admin.ClassListPage.class_list_page import ClassListPage
 from Frontend.src.Admin.ExamProgramPages.exam_program_interface import ExamProgramPage
+from Frontend.src.Admin.ExamProgramPages.created_exam_program_page import CreatedExamProgramPage
 
 class AdminDashboard(QWidget):
     def __init__(self, controller, user_info=None):
@@ -43,7 +44,8 @@ class AdminDashboard(QWidget):
             "🏫 Sınıf Ekle",
             "👨‍🎓 Öğrenci Listesi",
             "📖 Ders Listesi",
-            " Sınav Programı Oluştur"
+            " Sınav Programı Oluştur",
+            "🗓️ Oluşturulan Sınav Programları"
         ]:
             item = QListWidgetItem(item_text)
             item.setSizeHint(QSize(180, 40))
@@ -92,6 +94,11 @@ class AdminDashboard(QWidget):
         self.class_list_page = ClassListPage(self.user_info, self)
         
         self.exam_program_page = ExamProgramPage(self.user_info, self)
+        
+        self.created_exam_program_page = CreatedExamProgramPage(self.user_info, self)
+        
+        self.exam_program_page.program_created.connect(self.created_exam_program_page.add_exam_program)
+        self.exam_program_page.program_created.connect(self.on_exam_program_created)
 
         self.empty_page = QWidget()
         e_layout = QVBoxLayout()
@@ -109,6 +116,7 @@ class AdminDashboard(QWidget):
         self.stack.addWidget(self.student_list_page)
         self.stack.addWidget(self.class_list_page)
         self.stack.addWidget(self.exam_program_page)
+        self.stack.addWidget(self.created_exam_program_page)
 
         content_layout.addWidget(self.title_label)
         content_layout.addWidget(self.info_label)
@@ -128,7 +136,8 @@ class AdminDashboard(QWidget):
             4: ("insert_classroom", "Sınıf Ekle"),
             5: ("student_list", "Öğrenci Listesi"),
             6: ("class_list", "Ders Listesi"),
-            7: ("exam_program", "Sınav Programı Oluştur")
+            7: ("exam_program", "Sınav Programı Oluştur"),
+            8: ("created_exam_program", "Oluşturulan Sınav Programları")
         }
 
         if index in mapping:
@@ -138,3 +147,21 @@ class AdminDashboard(QWidget):
 
     def logout(self):
         self.controller.logout()
+        
+    def on_exam_program_created(self, results):
+        self.text_output.append("\n✅ Sınav programı başarıyla oluşturuldu!\n")
+        exam_info = results.get('exam_program_info', {})
+        kalan_dersler = exam_info.get('kalan_dersler', [])
+        self.text_output.append(f"📝 Seçilen dersler: {len(kalan_dersler)} ders\n")
+
+        
+        self.text_output.append("📊 Şu ana kadar yapılan işlemler:\n")
+        self.text_output.append(" - Sınıflar oluşturuldu ✅\n")
+        self.text_output.append(" - Ders listesi yüklendi ✅\n")
+        self.text_output.append(" - Öğrenci listesi yüklendi ✅\n")
+        self.text_output.append(" - Sınav programı oluşturuldu ✅\n")
+                
+        general_item = self.menu.item(0)
+        general_item.setFlags(general_item.flags() | Qt.ItemIsEnabled)
+        general_item.setForeground(Qt.white)
+                
