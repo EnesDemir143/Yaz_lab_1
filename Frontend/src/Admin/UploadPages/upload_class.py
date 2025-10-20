@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
 from Frontend.src.Admin.UploadPages.upload_file import UploadWorker
+from Frontend.src.Admin.StudentListPage.student_list_page_worker import Student_list_search_worker
 
 class UploadClassList(QWidget):
     def __init__(self, user_info, parent_dashboard=None):
@@ -70,10 +71,31 @@ class UploadClassList(QWidget):
             self.file_label.setText(file_path.split("/")[-1])
             self.file_path = file_path
 
+    def check_if_duplicate_on_db(self, department):
+        self.worker_2 = Student_list_search_worker("all_classes", {'department': department}, self.user_info)
+        self.worker_2.finished.connect(self.handle_check_duplicates_response)
+        self.worker_2.start()
+    
+    def handle_check_duplicates_response(self, result):
+        self.check_if_duplicate = result
+        
+        if self.check_if_duplicate.get("status") == "error":
+            QMessageBox.critical(self, "Hata", self.check_if_duplicate.get("detail", "Bilinmeyen hata"))
+            return
+        if self.check_if_duplicate.get("classes"):
+            QMessageBox.warning(
+                self,
+                "Uyarı",
+                "Veritabanında zaten kayıtlı dersler var. önce mevcut dersler silinip sonrasında yenileri eklenecektir!!!"
+            )
+
+
     def upload_action(self):
         if not self.file_path:
             QMessageBox.warning(self, "Uyarı", "Lütfen bir Excel dosyası seçin.")
             return
+        
+        self.check_if_duplicate_on_db(self.department_box.currentText())    
 
         department = self.department_box.currentText()
         self.progress_bar.setVisible(True)

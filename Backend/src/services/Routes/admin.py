@@ -5,7 +5,7 @@ from Backend.src.DataBase.src.structures.classrooms import Classroom
 from Backend.src.DataBase.src.structures.user import User
 from Backend.src.DataBase.src.utils.class_list_menu import class_list_menu
 from Backend.src.DataBase.src.utils.insert_classroom import insert_classroom_to_db
-from Backend.src.DataBase.src.utils.student_list_menu import student_list_menu
+from Backend.src.DataBase.src.utils.student_list_menu import student_list_menu, student_list_for_department
 from Backend.src.services.Utils.check_if_admin import require_admin
 from Backend.src.DataBase.scripts.class_list_save_from_excel import class_list_save_from_excel
 from Backend.src.DataBase.scripts.student_list_save_from_excel import student_list_save_from_excel
@@ -16,6 +16,8 @@ from Backend.src.DataBase.src.utils.get_departments import get_departments as db
 from Backend.src.DataBase.src.utils.get_all_classrooms import get_all_classrooms
 from Backend.src.DataBase.src.utils.insert_exam_schedule import insert_exam_schedule 
 from Backend.src.DataBase.src.utils.read_exam_program import read_exam_schedule_by_department 
+from Backend.src.DataBase.src.utils.delete_stutent_list import delete_students
+from Backend.src.DataBase.src.utils.delete_classes import delete_classes
 from typing import Dict, Any
 import io
 
@@ -37,6 +39,10 @@ async def insert_coordinator(coordinator: User, user: User = Depends(require_adm
 @router.post("/upload_classes_list") 
 async def upload_classes_list(uploaded_department: str = Form(...), user: User = Depends(require_admin), file: UploadFile = File(...)):
     contents = await file.read()
+    
+    result = delete_classes(uploaded_department)
+    if result.get('status') == 'error' and result.get('status') != 'success':
+        return {"message": "Error while deleting existing class list.", 'status': 'error', 'detail': result.get('errors', '')}
 
     df = pd.read_excel(io.BytesIO(contents), sheet_name="Ders Listesi", header=None)
     
@@ -51,6 +57,10 @@ async def upload_classes_list(uploaded_department: str = Form(...), user: User =
 @router.post("/upload_students_list")
 async def upload_students_list(uploaded_department: str = Form(...), user: User = Depends(require_admin),  file: UploadFile = File(...)):
     contents = await file.read()
+    
+    result = delete_students(uploaded_department)
+    if result.get('status') == 'error' and result.get('status') != 'success':
+        return {"message": "Error while deleting existing student list.", 'status': 'error', 'detail': result.get('errors', '')}
     
     df = pd.read_excel(io.BytesIO(contents))
     
@@ -298,3 +308,17 @@ def get_exam_schedules(user: User = Depends(require_admin)):
 
     result = read_exam_schedule_by_department()
     return result
+
+@router.post("/check_students_exist")
+def check_students_exist(uploaded_department: str = Form(...), user: User = Depends(require_admin)):
+    try:
+        print(f"Checking for existing students in department: {uploaded_department}")
+        students_and_classes = student_list_for_department(department=uploaded_department)
+
+        if not students_and_classes:
+            return {'students': False, "message": "No students found in the database for this department.", 'status': 'success'}
+        
+        return {'students': True, "message": "Students exist in the database for this department.", 'status': 'success'}
+        
+    except Exception as e:
+        return {'students': False, "message": "Error while checking for students.", 'status': 'error', 'detail': str(e)}

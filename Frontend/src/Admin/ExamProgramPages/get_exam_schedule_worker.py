@@ -24,6 +24,7 @@ class get_schedules(QThread):
 
             resp = requests.get(url, headers=headers, timeout=30)
             print(f"GET {url} - Status Code: {resp.status_code}")
+            print(f"Response Content: {resp.text}")
             try:
                 result = resp.json()
             except Exception:

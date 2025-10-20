@@ -41,7 +41,7 @@ class AdminDashboard(QWidget):
             "📁 Ders Listesi Yükle",
             "📚 Öğrenci Listesi Yükle",
             "👩‍🏫 Koordinatör Ekle",
-            "🏫 Sınıf Ekle",
+            "🏫 Derslik Yönetim Sistemi",
             "👨‍🎓 Öğrenci Listesi",
             "📖 Ders Listesi",
             " Sınav Programı Oluştur",

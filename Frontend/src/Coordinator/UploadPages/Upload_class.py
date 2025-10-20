@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
 from Frontend.src.Coordinator.UploadPages.upload_worker import UploadWorker
+from Frontend.src.Coordinator.ClassList.class_list_page_worker import Class_list_page_worker
 
 
 class UploadClassList(QWidget):
@@ -14,6 +15,7 @@ class UploadClassList(QWidget):
         self.user_info = user_info
         self.parent_dashboard = parent_dashboard
         self.file_path = None
+        self.check_if_duplicate_on_db()
         self.init_ui()
 
     def init_ui(self):
@@ -61,6 +63,15 @@ class UploadClassList(QWidget):
         if file_path:
             self.file_label.setText(file_path.split("/")[-1])
             self.file_path = file_path
+            
+    def check_if_duplicate_on_db(self):
+        worker = Class_list_page_worker("all_classes", self.user_info)
+        worker.finished.connect(self.handle_check_duplicates_response)
+        worker.start()
+        worker.wait()   
+    
+    def handle_check_duplicates_response(self, result):
+        self.check_if_duplicate = result
 
     def upload_action(self):
         if not self.file_path:
@@ -73,6 +84,16 @@ class UploadClassList(QWidget):
         if not self.parent_dashboard or not hasattr(self.parent_dashboard, "current_endpoint"):
             QMessageBox.warning(self, "Uyarı", "Geçerli bir işlem seçilmedi.")
             return
+          
+        if self.check_if_duplicate.get("status") == "error":
+            QMessageBox.critical(self, "Hata", self.check_if_duplicate.get("detail", "Bilinmeyen hata"))
+            return
+        if self.check_if_duplicate.get("classes"):
+            QMessageBox.warning(
+                self,
+                "Uyarı",
+                "Veritabanında zaten kayıtlı dersler var. önce mevcut dersler bulunmakta bunlar silinip yenileri eklenecektir!!!"
+            )
 
         self.worker = UploadWorker(
             self.parent_dashboard.current_endpoint,
