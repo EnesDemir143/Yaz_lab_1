@@ -10,8 +10,12 @@ class ExamProgram:
         self.istisna_dersler = {}  
         self.bekleme_suresi = 15
         self.exam_conflict = False
-        self.start_time = 9.0
-        self.end_time = 17.0
+        self.start_time = None
+        self.end_time = None
+        
+    def set_start_end_time(self, start_time, end_time):
+        self.start_time = start_time
+        self.end_time = end_time
         
     def get_exam_type(self):
         return self.sinav_turu

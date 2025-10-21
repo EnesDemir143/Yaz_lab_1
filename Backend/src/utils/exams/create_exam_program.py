@@ -131,6 +131,7 @@ def insert_class_to_program(
     has_exam_conflict = exam_program.get_exam_conflict()
     start_time = exam_program.get_start_time()
     end_time = exam_program.get_end_time()
+    print(f"⏰ Sınav günleri için zaman aralığı: {float_to_time_str(start_time)} - {float_to_time_str(end_time)}")
 
     exam_time = exam_program.get_ders_suresi(class_name) / 60
     waiting_after_exam = exam_program.get_bekleme_suresi() / 60

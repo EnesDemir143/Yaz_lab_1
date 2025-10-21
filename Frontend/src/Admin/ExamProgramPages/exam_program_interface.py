@@ -2,7 +2,8 @@ from datetime import datetime
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox,
     QDateEdit, QComboBox, QSpinBox, QPushButton,
-    QScrollArea, QFrame, QMessageBox, QApplication
+    QScrollArea, QFrame, QMessageBox, QApplication,
+    QDoubleSpinBox, QLineEdit
 )
 from PyQt5.QtCore import Qt, QDate, pyqtSignal
 from PyQt5.QtGui import QFont
@@ -37,6 +38,8 @@ class ExamProgramPage(QWidget):
         self.saved_istisna_sure = 60
         self.saved_bekleme = 15
         self.exam_conflict = False 
+        self.start_time_value = 9.0
+        self.end_time_value = 17.0
         
         self.classes_and_their_students = None
         self.classrooms_data = None
@@ -205,6 +208,8 @@ class ExamProgramPage(QWidget):
                     self.saved_start_date = self.start_date.date()
                 if hasattr(self, 'end_date') and self.end_date:
                     self.saved_end_date = self.end_date.date()
+                self.start_time_value = self.parse_time_input(self.start_time_input.text())
+                self.end_time_value = self.parse_time_input(self.end_time_input.text())
                 if hasattr(self, 'check_cumartesi') and self.check_cumartesi:
                     self.saved_cumartesi = self.check_cumartesi.isChecked()
                 if hasattr(self, 'check_pazar') and self.check_pazar:
@@ -268,6 +273,19 @@ class ExamProgramPage(QWidget):
         # Sadece 2 ve üzeri adımlar için çalışır
         if self.current_step in steps:
             steps[self.current_step]()
+            
+    def parse_time_input(self, text: str) -> float:
+        try:
+            if "." in text:
+                hour_str, minute_str = text.split(".")
+                hour = int(hour_str)
+                minute = int(minute_str)
+                return hour + (minute / 60.0)
+            else:
+                return float(text)
+        except Exception:
+            return None
+
 
     # -------------------------- ADIM 1 --------------------------
 
@@ -357,6 +375,11 @@ class ExamProgramPage(QWidget):
             self.end_date.setDate(QDate.currentDate().addDays(10))
         self.end_date.setCalendarPopup(True)
         self.end_date.setDisplayFormat("dd.MM.yyyy")
+        
+        # Saat seçimi   
+        saat_label = QLabel("⏰ Sınav Gün Başlangıç ve Bitiş Saatleri:")
+        saat_label.setFont(QFont("Arial", 11, QFont.Bold))
+        self.content_layout.addWidget(saat_label)
 
         date_layout = QHBoxLayout()
         date_layout.addWidget(QLabel("Başlangıç:"))
@@ -365,6 +388,49 @@ class ExamProgramPage(QWidget):
         date_layout.addWidget(self.end_date)
         date_layout.addStretch()
         self.content_layout.addLayout(date_layout)
+        self.content_layout.addSpacing(20)
+
+        self.start_time_input = QLineEdit()
+        self.start_time_input.setPlaceholderText("Örn: 09.15")
+        self.start_time_input.setText("09.00")  # varsayılan değer
+        self.start_time_input.setFixedWidth(90)
+        self.start_time_input.setAlignment(Qt.AlignCenter)
+        self.start_time_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #2b2b2b;
+                color: #ddd;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 10pt;
+            }
+        """)
+
+        # 🕔 Bitiş saati giriş alanı
+        self.end_time_input = QLineEdit()
+        self.end_time_input.setPlaceholderText("Örn: 17.30")
+        self.end_time_input.setText("17.00")
+        self.end_time_input.setFixedWidth(90)
+        self.end_time_input.setAlignment(Qt.AlignCenter)
+        self.end_time_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #2b2b2b;
+                color: #ddd;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 10pt;
+            }
+        """)
+
+        # Layout’a ekleme
+        time_layout = QHBoxLayout()
+        time_layout.addWidget(QLabel("Gün Başlangıç Saati:"))
+        time_layout.addWidget(self.start_time_input)
+        time_layout.addWidget(QLabel("Gün Bitiş Saati:"))
+        time_layout.addWidget(self.end_time_input)
+        time_layout.addStretch()
+        self.content_layout.addLayout(time_layout)
         self.content_layout.addSpacing(20)
 
         # Hariç günler
@@ -550,6 +616,8 @@ class ExamProgramPage(QWidget):
             if self.saved_istisna_ders:
                 for ders, sure in self.saved_istisna_ders.items():
                     self.exam_program.set_istisna_ders(ders, sure)
+
+            self.exam_program.set_start_end_time(self.start_time_value, self.end_time_value)
 
             self.exam_program.set_bekleme_suresi(self.saved_bekleme)
 
