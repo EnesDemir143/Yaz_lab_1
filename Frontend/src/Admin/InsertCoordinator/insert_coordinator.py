@@ -29,7 +29,7 @@ class InsertCoordinator(QWidget):
         email_layout = QHBoxLayout()
         email_label = QLabel("Email:")
         self.email_input = QTextEdit()
-        self.email_input.setFixedHeight(30)
+        self.email_input.setFixedHeight(43)
         email_layout.addWidget(email_label)
         email_layout.addWidget(self.email_input)
 
@@ -37,7 +37,7 @@ class InsertCoordinator(QWidget):
         password_layout = QHBoxLayout()
         password_label = QLabel("Şifre:")
         self.password_input = QTextEdit()
-        self.password_input.setFixedHeight(30)
+        self.password_input.setFixedHeight(43)
         password_layout.addWidget(password_label)
         password_layout.addWidget(self.password_input)
         

@@ -279,10 +279,8 @@ class CreatedExamProgramPage(QWidget):
                 for c in range(max_col + 1):
                     cell = parsed_grid.get((r, c))
                     if cell:
-                        name = cell.get('name', 'İsim Yok') + " " + cell.get('surname', '')
                         num = cell.get("student_num", "???")
                         cell_elem = [
-                            Paragraph(name, styles['CellName']),
                             Paragraph(f"({num})", styles['CellID'])
                         ]
                     else:

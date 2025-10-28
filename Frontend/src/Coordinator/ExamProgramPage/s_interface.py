@@ -617,12 +617,15 @@ class ExamProgramPage(QWidget):
                 classrooms=self.classrooms_data,
             )
             stats = self.results.get("statistics", {})
+            failed_classes = self.results.get("failed_classes", [])
+            failed_classes = [cls_name['name'] for cls_name in failed_classes]
             QMessageBox.information(
                 self, "Başarılı",
                 f"✅ Sınav programı başarıyla oluşturuldu!\n\n"
                 f"📚 Toplam ders: {stats.get('total_classes')}\n"
                 f"✓ Yerleştirilen: {stats.get('successful_classes')}\n"
                 f"✗ Yerleştirilemeyen: {stats.get('failed_classes')}\n"
+                f"Yerleştirilmeyen ders adları: {', '.join(failed_classes) if (len(failed_classes) > 0) else 'Yok'}"
             )
             exam_schedule = self.make_json_safe(self.results['exam_schedule'])
 

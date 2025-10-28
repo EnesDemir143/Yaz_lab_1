@@ -6,23 +6,16 @@ import itertools
 from datetime import timedelta, datetime
 import pandas as pd
 import random
+from collections import defaultdict, deque
 
-def create_exam_schedule(
-    exam_program: ExamProgram,
-    class_dict: dict,
-    classrooms: list[dict]) -> dict:
-    
+def create_exam_schedule(exam_program, class_dict: dict, classrooms: list[dict], max_per_day: int = 2) -> dict:
     statistics = {}
-    
-    first_date_str = exam_program.get_first_date_of_exam()
-    last_date_str = exam_program.get_last_date_of_exam()
-    
-    first_date = datetime.fromisoformat(first_date_str)
-    last_date = datetime.fromisoformat(last_date_str)
-    
-    exam_type = exam_program.get_exam_type()
-    print("exam_type: ", exam_type, "exam_type type:", type(exam_type))
 
+    first_date = datetime.fromisoformat(exam_program.get_first_date_of_exam())
+    last_date = datetime.fromisoformat(exam_program.get_last_date_of_exam())
+    exam_type = exam_program.get_exam_type()
+
+    # Günleri oluştur
     exam_schedule = []
     current_date = first_date
     while current_date <= last_date:
@@ -32,69 +25,99 @@ def create_exam_schedule(
             "exams": []
         })
         current_date += timedelta(days=1)
-        
-    all_classroom_combinations = _find_all_combinations(classrooms)
-    print(f"Tüm sınıf kombinasyonları bulundu: {len(all_classroom_combinations)} adet")
     
-    classes_by_year = {1: [], 2: [], 3: [], 4: []}
+    total_days = len(exam_schedule)
 
+    # Sınıfları yıllara göre grupla
+    classes_by_year = {1: [], 2: [], 3: [], 4: []}
     for class_id, info in class_dict.items():
         year = info.get('year', 0)
         if year in classes_by_year:
-            class_data = {
+            classes_by_year[year].append({
                 'id': class_id,
                 'name': info.get('class_name', ''),
                 'year': year,
                 'instructor': info.get('instructor', 'N/A'),
                 "students": info.get('students', []),
                 'student_count': len(info.get('students', []))
-            }
-            classes_by_year[year].append(class_data)
+            })
 
-    all_classes = []
-    for year_classes in classes_by_year.values():
-        all_classes.extend(year_classes)
+    # Karıştır ve deque'e çevir
+    for y in classes_by_year:
+        random.shuffle(classes_by_year[y])
+        classes_by_year[y] = deque(classes_by_year[y])
 
-    random.shuffle(all_classes)
+    all_classroom_combinations = _find_all_combinations(classrooms)
+    print(f"Tüm sınıf kombinasyonları bulundu: {len(all_classroom_combinations)} adet")
 
-    final_ordered_list = all_classes
-            
     failed_classes = []
+    success_count = 0
 
-    print("Birincil Yerleştirme denemesi başlıyor...")
-    for idx, class_data in enumerate(final_ordered_list):
-        print(f"Deneme - Öncelik {idx}: {class_data['name']}...")
-        is_successful = insert_class_to_program(class_data, idx, exam_program, exam_schedule, all_classroom_combinations)
-        
-        if not is_successful:
-            print(f"  -> BAŞARISIZ! '{class_data['name']}' dersi sonraya ertelendi.")
-            failed_classes.append(class_data)
-        else:
-            print(f"  -> BAŞARILI! '{class_data['name']}' dersi yerleştirildi.")
+    # Günlük yıl sınav sayacı
+    daily_year_counts = [defaultdict(int) for _ in range(total_days)]
 
-    print("\n" + "="*50 + "\n")
-    count = 0
-    if failed_classes:
-        print("İkincil Yerleştirme denemesi (ertelenen dersler)")
-        for class_data in failed_classes:
-            print(f"Tekrar Deneme - Ders: {class_data['name']}...")
-            is_successful_again = insert_class_to_program(class_data, count, exam_program, exam_schedule, all_classroom_combinations)
-            
-            if not is_successful_again:
-                print(f"  -> SONUÇ: BAŞARISIZ! '{class_data['name']}' dersi programa yerleştirilemedi.")
+    print("Dinamik Yerleştirme başlıyor...")
+    round_counter = 0
+    start_day = 0  # round-robin başlangıç günü
+
+    while any(classes_by_year[y] for y in classes_by_year):
+        year_order = [1, 2, 3, 4]
+        random.shuffle(year_order)
+
+        for y in year_order:
+            if not classes_by_year[y]:
+                continue
+
+            found_day = None
+            # round-robin gün araması
+            for offset in range(total_days):
+                test_day = (start_day + offset) % total_days
+                if daily_year_counts[test_day][y] < max_per_day:
+                    found_day = test_day
+                    break
+
+            if found_day is None:
+                # hiçbir uygun gün yoksa bu sınıf ertelenir
+                failed_classes.extend(classes_by_year[y])
+                classes_by_year[y].clear()
+                continue
+
+            class_data = classes_by_year[y].popleft()
+            current_day = exam_schedule[found_day]
+
+            print(f"Gün {found_day + 1} | {class_data['name']} ({y}. sınıf) yerleştiriliyor...")
+
+            is_successful = insert_class_to_program(
+                class_data,
+                round_counter,
+                exam_program,
+                exam_schedule,
+                all_classroom_combinations
+            )
+
+            if is_successful:
+                success_count += 1
+                daily_year_counts[found_day][y] += 1
+                print(f"  -> BAŞARILI ({y}. sınıf - Gün {found_day+1} toplam {daily_year_counts[found_day][y]})")
             else:
-                print(f"  -> SONUÇ: BAŞARILI! '{class_data['name']}' dersi yerleştirildi.")
-            count += 1
-    else:
-        print("Tüm dersler ilk denemede başarıyla yerleştirildi!")
-        
+                failed_classes.append(class_data)
+                print(f"  -> BAŞARISIZ: {class_data['name']}")
+
+            # Bir sonraki sınıfın yerleştirme araması bir sonraki günden başlasın
+            start_day = (found_day + 1) % total_days
+            round_counter += 1
+
+    # --- Oturma planı oluştur ---
+    exam_schedule = create_seating_plan(exam_schedule)
+
+    # --- İstatistikler ---
     statistics['total_classes'] = len(class_dict)
     statistics['failed_classes'] = len(failed_classes)
-    statistics['successful_classes'] = statistics['total_classes'] - statistics['failed_classes']
+    statistics['successful_classes'] = success_count
 
-    exam_schedule = create_seating_plan(exam_schedule)
-    print("Oturma planları oluşturuldu.")
-            
+    print("\nYerleştirme tamamlandı.")
+    print(f"Başarılı: {success_count} | Başarısız: {len(failed_classes)}")
+
     return {
         "exam_schedule": exam_schedule,
         "failed_classes": failed_classes,
@@ -143,7 +166,7 @@ def insert_class_to_program(
 
         if not exams:
             new_exam_block = {
-                "end_time": start_time + exam_time,
+                "end_time": start_time + exam_time + waiting_after_exam,
                 "classes": [{
                     "id": class_id,
                     "name": class_name,
@@ -402,7 +425,7 @@ def create_seating_plan(exam_schedule: List[dict]) -> dict:
                 for room_data, student_chunk in zip(classrooms_full_data, student_chunks):
                     student_grid = adjust_seating_plan(room_data, student_chunk)
 
-                    room_name = room_data.get("classroom_name", "Bilinmeyen")
+                    room_name = room_data.get("classroom_id", "Bilinmeyen")
                     print(f'Seating plan for {room_name}:')
                     print_plan(student_grid, room_data)
                     cls['seating_plan'][room_name] = student_grid
@@ -438,7 +461,7 @@ def seperate_students(students, classrooms):
 
 def adjust_seating_plan(room, students):
     student_grid = {}
-    desk_structure = int(room['desk_structure'])
+    desk_structure = int(room['desk_structure'])  # Örneğin 3 → Ö S Ö
     num_rows = room['desks_per_column']
     num_desk_cols = room['desks_per_row']
 
@@ -448,48 +471,46 @@ def adjust_seating_plan(room, students):
 
     grid_col_index = 0
     desk_cols_placed = 0
+
     while desk_cols_placed < num_desk_cols:
-        if desk_cols_placed > 0 and desk_cols_placed % desk_structure == 0:
+        # --- Masa bloğu oluştur ---
+        if desk_structure == 1:
+            pattern = ['Ö']
+        elif desk_structure == 2:
+            pattern = ['Ö', 'S']
+        elif desk_structure == 3:
+            pattern = ['Ö', 'S', 'Ö']
+        else:
+            # 4 ve üzeri için: Ö S S ... S Ö
+            pattern = ['Ö'] + ['S'] * (desk_structure - 2) + ['Ö']
+
+        # Bu bloğu tabloya işle
+        for symbol in pattern:
             for row in range(num_rows):
-                student_grid[(row, grid_col_index)] = 'AISLE'
+                if symbol == 'Ö':
+                    student_grid[(row, grid_col_index)] = None  # öğrenci oturacak
+                else:
+                    student_grid[(row, grid_col_index)] = 'BOS'
+            grid_col_index += 1
+            desk_cols_placed += 1
+            if desk_cols_placed >= num_desk_cols:
+                break
+
+        # --- Koridor ekle ---
+        if desk_cols_placed < num_desk_cols:
+            for row in range(num_rows):
+                student_grid[(row, grid_col_index)] = 'KORİDOR'
             grid_col_index += 1
 
-        for row in range(num_rows):
-            student_grid[(row, grid_col_index)] = None
-        desk_cols_placed += 1
-        grid_col_index += 1
-
+    # 🔹 Şimdi öğrencileri sırayla yerleştir
     student_iterator = iter(students)
-    max_grid_col = grid_col_index
-    desk_col_counter = 0
-
-    for c in range(max_grid_col):
-        if student_grid.get((0, c)) == 'AISLE':
+    for c in range(grid_col_index):
+        if student_grid.get((0, c)) in ('KORİDOR', 'BOS'):
             continue
-
-        position_in_structure = desk_col_counter % desk_structure
-        
-        place_students_in_this_col = False
-
-        if desk_structure == 1:
-            place_students_in_this_col = True
-        elif desk_structure == 2 or desk_structure == 4:
-            if position_in_structure == 0:
-                place_students_in_this_col = True
-        elif desk_structure == 3:
-            if position_in_structure != 1:
-                place_students_in_this_col = True
-        elif desk_structure == 4:
-            if position_in_structure == 0 or position_in_structure == 3:
-                place_students_in_this_col = True
-
-        if place_students_in_this_col:
-            for r in range(num_rows):
-                try:
-                    student_grid[(r, c)] = next(student_iterator)
-                except StopIteration:
-                    return student_grid
-        
-        desk_col_counter += 1
+        for r in range(num_rows):
+            try:
+                student_grid[(r, c)] = next(student_iterator)
+            except StopIteration:
+                return student_grid
 
     return student_grid

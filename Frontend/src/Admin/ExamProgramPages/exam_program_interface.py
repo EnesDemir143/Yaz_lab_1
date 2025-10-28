@@ -700,14 +700,17 @@ class ExamProgramPage(QWidget):
                 classrooms=self.classrooms_data,
             )
             stats = self.results.get("statistics", {})
+            failed_classes = stats.get("failed_classes", 0)
             QMessageBox.information(
                 self, "Başarılı",
                 f"✅ Sınav programı başarıyla oluşturuldu!\n\n"
                 f"📚 Toplam ders: {stats.get('total_classes')}\n"
                 f"✓ Yerleştirilen: {stats.get('successful_classes')}\n"
                 f"✗ Yerleştirilemeyen: {stats.get('failed_classes')}\n"
+                f"Yerleştirilmeyen ders adları: {', '.join(failed_classes) if (failed_classes) > 0 else 'Yok'}"
             )
             exam_schedule = self.make_json_safe(self.results['exam_schedule'])
+            
 
             self.insert_exam_schedule_worker = InsertExamScheduleWorker("insert_exam_schedule_to_db", exam_schedule, self.user_info)
             self.insert_exam_schedule_worker.finished.connect(self.handle_insert_exam_schedule)

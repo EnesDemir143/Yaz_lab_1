@@ -212,50 +212,54 @@ class CreatedExamProgramPage(QWidget):
             if not container.layout():
                 container_layout = QVBoxLayout(container)
                 container_layout.setSpacing(15)
-                
-                for room_name, student_grid in plan_data.items():
-                    if not student_grid: 
-                        continue
+            else:
+                container_layout = container.layout()
 
-                    room_frame = QFrame()
-                    room_frame.setStyleSheet("QFrame { border: 1px solid #444; border-radius: 5px; }")
-                    room_layout = QVBoxLayout(room_frame)
+            container_layout = QVBoxLayout(container)
+            container_layout.setSpacing(15)
+            
+            for room_name, student_grid in plan_data.items():
+                if not student_grid: 
+                    continue
 
-                    room_label = QLabel(f"🏫 {room_name}")
-                    room_label.setFont(QFont("Arial", 11, QFont.Bold))
-                    room_label.setStyleSheet("border: none; padding: 5px; color: #aaa;")
-                    room_layout.addWidget(room_label)
+                room_frame = QFrame()
+                room_frame.setStyleSheet("QFrame { border: 1px solid #444; border-radius: 5px; }")
+                room_layout = QVBoxLayout(room_frame)
 
-                    grid_widget = QWidget()
-                    student_grid_layout = QGridLayout(grid_widget)
-                    student_grid_layout.setSpacing(5)
+                room_label = QLabel(f"🏫 {room_name}")
+                room_label.setFont(QFont("Arial", 11, QFont.Bold))
+                room_label.setStyleSheet("border: none; padding: 5px; color: #aaa;")
+                room_layout.addWidget(room_label)
 
-                    max_row = max((key[0] for key in student_grid.keys()), default=-1)
-                    max_col = max((key[1] for key in student_grid.keys()), default=-1)
+                grid_widget = QWidget()
+                student_grid_layout = QGridLayout(grid_widget)
+                student_grid_layout.setSpacing(5)
 
-                    for r in range(max_row + 1):
-                        for c in range(max_col + 1):
-                            cell_content = student_grid.get((r, c))
-                            cell_label = QLabel()
-                            cell_label.setAlignment(Qt.AlignCenter)
-                            cell_label.setFixedSize(60, 40)
-                            
-                            if cell_content == 'AISLE':
-                                cell_label.setText("Koridor")
-                                cell_label.setStyleSheet("color: #666; font-size: 9px; background-color: #282828; border-radius: 3px;")
-                            elif cell_content is None:
-                                cell_label.setText("BOŞ")
-                                cell_label.setStyleSheet("color: #777; font-size: 10px; background-color: #333; border: 1px solid #444; border-radius: 4px;")
-                            else:
-                                student_no = str(cell_content.get('student_num', '???'))
-                                cell_label.setText(student_no)
-                                cell_label.setStyleSheet("color: white; font-weight: bold; background-color: #005a03; border: 1px solid #1b851f; border-radius: 4px;")
-                            
-                            student_grid_layout.addWidget(cell_label, r, c)
+                max_row = max((key[0] for key in student_grid.keys()), default=-1)
+                max_col = max((key[1] for key in student_grid.keys()), default=-1)
+
+                for r in range(max_row + 1):
+                    for c in range(max_col + 1):
+                        cell_content = student_grid.get((r, c))
+                        cell_label = QLabel()
+                        cell_label.setAlignment(Qt.AlignCenter)
+                        cell_label.setFixedSize(60, 40)
+                        
+                        if cell_content == 'AISLE':
+                            cell_label.setText("Koridor")
+                            cell_label.setStyleSheet("color: #666; font-size: 9px; background-color: #282828; border-radius: 3px;")
+                        elif cell_content is None:
+                            cell_label.setText("BOŞ")
+                            cell_label.setStyleSheet("color: #777; font-size: 10px; background-color: #333; border: 1px solid #444; border-radius: 4px;")
+                        else:
+                            student_no = str(cell_content.get('student_num', '???'))
+                            cell_label.setText(student_no)
+                            cell_label.setStyleSheet("color: white; font-weight: bold; background-color: #005a03; border: 1px solid #1b851f; border-radius: 4px;")
+                        
+                        student_grid_layout.addWidget(cell_label, r, c)
                     
                     room_layout.addWidget(grid_widget)
                     container_layout.addWidget(room_frame)
-
             container.setVisible(True)
             button.setText("▲ Oturma Planı Gizle")
 
@@ -361,6 +365,9 @@ class CreatedExamProgramPage(QWidget):
                             Paragraph(name, styles['CellName']),
                             Paragraph(f"({num})", styles['CellID'])
                         ]
+                    elif cell_content == 'AISLE':
+                        # Koridor (AISLE)
+                        cell_element = Paragraph("(KORİDOR)", styles['CellEmpty'])
                     else:
                         # Boş sıra (None, 'AISLE' veya diğer durumlar)
                         cell_element = Paragraph("(BOŞ)", styles['CellEmpty'])
@@ -460,6 +467,8 @@ class CreatedExamProgramPage(QWidget):
                     count = cls.get("student_count", 0)
                     rooms = [r.get("classroom_id", "-") for r in cls.get("classrooms", [])]
                     seating_plan = cls.get("seating_plan", {})
+                    print(f"--- Oturma Planı Verisi ---\n{seating_plan}\n-------------------------")
+                    
 
                     exam_widget = QWidget()
                     exam_layout = QVBoxLayout(exam_widget)
