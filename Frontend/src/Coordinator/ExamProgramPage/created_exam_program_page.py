@@ -202,20 +202,23 @@ class CreatedExamProgramPage(QWidget):
             self.get_excel_btn.clicked.connect(self.download_excel)
             self.main_layout.addWidget(self.get_excel_btn, alignment=Qt.AlignCenter)
             
-
     def toggle_seating_plan_visibility(self, button: QPushButton, container: QWidget, plan_data: dict):
         if container.isVisible():
             container.setVisible(False)
             button.setText("▼ Oturma Planı Göster")
         else:
-            if not container.layout():
+            # Mevcut layout'u temizle (varsa)
+            if container.layout():
+                for i in reversed(range(container.layout().count())):
+                    widget = container.layout().itemAt(i).widget()
+                    if widget:
+                        widget.deleteLater()
+            else:
                 container_layout = QVBoxLayout(container)
                 container_layout.setSpacing(15)
-            else:
-                container_layout = container.layout()
-            
+
             for room_name, student_grid in plan_data.items():
-                if not student_grid: 
+                if not student_grid:
                     continue
 
                 room_frame = QFrame()
@@ -228,72 +231,65 @@ class CreatedExamProgramPage(QWidget):
                 room_layout.addWidget(room_label)
 
                 grid_widget = QWidget()
-                student_grid_layout = QGridLayout(grid_widget)
-                student_grid_layout.setSpacing(5)
+                grid_layout = QGridLayout(grid_widget)
+                grid_layout.setSpacing(5)
 
-                max_row = max((key[0] for key in student_grid.keys()), default=-1)
-                max_col = max((key[1] for key in student_grid.keys()), default=-1)
+                # Maksimum satır ve sütun sayılarını bul
+                max_row = max((r for r, _ in student_grid.keys()), default=-1)
+                max_col = max((c for _, c in student_grid.keys()), default=-1)
 
                 for r in range(max_row + 1):
                     for c in range(max_col + 1):
-                        cell = student_grid.get((r, c))
+                        cell = student_grid.get((r, c), {"type": "empty", "student_num": None})
                         label = QLabel()
                         label.setAlignment(Qt.AlignCenter)
                         label.setFixedSize(60, 40)
 
-                        if not isinstance(cell, dict):
-                            # beklenmeyen durum
-                            label.setText("??")
-                            label.setStyleSheet("color: #888; font-size: 9px; background-color: #222;")
+                        ctype = cell.get("type")
+                        if ctype == "corridor":
+                            label.setText("Koridor")
+                            label.setStyleSheet("""
+                                color: #666;
+                                font-size: 9px;
+                                background-color: #282828;
+                                border-radius: 3px;
+                            """)
+                        elif ctype == "empty":
+                            label.setText("BOŞ")
+                            label.setStyleSheet("""
+                                color: #777;
+                                font-size: 10px;
+                                background-color: #333;
+                                border: 1px solid #444;
+                                border-radius: 4px;
+                            """)
+                        elif ctype == "seat" and cell.get("student_num") is not None:
+                            student_no = str(cell.get("student_num"))
+                            label.setText(student_no)
+                            label.setStyleSheet("""
+                                color: white;
+                                font-weight: bold;
+                                background-color: #005a03;
+                                border: 1px solid #1b851f;
+                                border-radius: 4px;
+                            """)
                         else:
-                            ctype = cell.get("type")
+                            label.setText("BOŞ")
+                            label.setStyleSheet("""
+                                color: #777;
+                                font-size: 10px;
+                                background-color: #333;
+                                border: 1px solid #444;
+                                border-radius: 4px;
+                            """)
 
-                            if ctype == "corridor":
-                                label.setText("Koridor")
-                                label.setStyleSheet("""
-                                    color: #666;
-                                    font-size: 9px;
-                                    background-color: #282828;
-                                    border-radius: 3px;
-                                """)
-                            elif ctype == "empty":
-                                label.setText("BOŞ")
-                                label.setStyleSheet("""
-                                    color: #777;
-                                    font-size: 10px;
-                                    background-color: #333;
-                                    border: 1px solid #444;
-                                    border-radius: 4px;
-                                """)
-                            elif ctype == "seat" and cell.get("student_num") is not None:
-                                student_no = str(cell.get("student_num"))
-                                label.setText(student_no)
-                                label.setStyleSheet("""
-                                    color: white;
-                                    font-weight: bold;
-                                    background-color: #005a03;
-                                    border: 1px solid #1b851f;
-                                    border-radius: 4px;
-                                """)
-                            else:
-                                # seat ama öğrenci yok (yani None)
-                                label.setText("BOŞ")
-                                label.setStyleSheet("""
-                                    color: #777;
-                                    font-size: 10px;
-                                    background-color: #333;
-                                    border: 1px solid #444;
-                                    border-radius: 4px;
-                                """)
+                        grid_layout.addWidget(label, r, c)
 
-                        student_grid_layout.addWidget(label, r, c)
-                
                 room_layout.addWidget(grid_widget)
                 container_layout.addWidget(room_frame)
 
             container.setVisible(True)
             button.setText("▲ Oturma Planı Gizle")
-
 
 
     def download_excel(self):
@@ -486,7 +482,6 @@ class CreatedExamProgramPage(QWidget):
                     count = cls.get("student_count", 0)
                     rooms = [r.get("classroom_id", "-") for r in cls.get("classrooms", [])]
                     seating_plan = cls.get("seating_plan", {})
-                    print(f"--- Oturma Planı Verisi ---\n{seating_plan}\n-------------------------")
                     
 
                     exam_widget = QWidget()

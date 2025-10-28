@@ -490,8 +490,7 @@ def adjust_seating_plan(room, students):
                     # Öğrenci oturabilecek masa
                     student_grid[(row, grid_col_index)] = {"type": "seat", "student_num": None}
                 else:
-                    # Koridor
-                    student_grid[(row, grid_col_index)] = {"type": "corridor"}
+                    student_grid[(row, grid_col_index)] = {"type": "empty"}
             grid_col_index += 1
             desk_cols_placed += 1
             if desk_cols_placed >= num_desk_cols:
@@ -508,24 +507,16 @@ def adjust_seating_plan(room, students):
     for c in range(grid_col_index):
         for r in range(num_rows):
             cell = student_grid.get((r, c))
-            if cell["type"] == "corridor":
+            if cell["type"] == "corridor" or cell["type"] == "empty":
                 continue
 
             try:
                 student = next(student_iterator)
                 cell["student_num"] = student.get("student_num")
-                cell["type"] = "seat"
             except StopIteration:
-                # kalan yerleri boş olarak işaretle
-                if cell["student_num"] is None:
+                if cell["student_num"] is None and cell["type"] == "seat":
                     cell["type"] = "empty"
-
-                # bundan sonraki tüm boşlar da BOS (empty)
-                for cc in range(c, grid_col_index):
-                    for rr in range(num_rows):
-                        sub_cell = student_grid.get((rr, cc))
-                        if sub_cell["type"] != "corridor" and sub_cell["student_num"] is None:
-                            sub_cell["type"] = "empty"
+                    del cell["student_num"]
                 return student_grid
 
     return student_grid
