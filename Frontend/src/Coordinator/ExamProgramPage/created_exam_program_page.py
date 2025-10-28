@@ -143,19 +143,20 @@ class CreatedExamProgramPage(QWidget):
                         download_pdf_button.setStyleSheet("QPushButton { background-color: #2d71b8; border: none; border-radius: 4px; padding: 5px; font-size: 11px; color: white; } QPushButton:hover { background-color: #3a82c9; }")
                         exam_info_layout.addWidget(download_pdf_button)
                         
-                        students = {}
+                        students_and_names = {}
                         for students in cls.get("students", []):
                             student_num = students.get("student_num")
                             name_surname = students.get("name") + " " + str(students.get("surname"))
-                            students[student_num] = name_surname
+                            students_and_names[student_num] = name_surname
+                            print(f"Öğrenci No: {student_num}, İsim Soyisim: {name_surname}")
                         
                         download_pdf_button.clicked.connect(
-                            lambda checked, exam_name=cname, students=students, plan_data=seating_plan_data: 
+                            lambda checked, exam_name=cname, studentsnames=students_and_names, plan_data=seating_plan_data: 
                             self.create_seating_plan_pdf(
                                 filename=f"{exam_name}_oturma_plani.pdf", 
                                 exam_name=exam_name, 
                                 plan_data=plan_data,
-                                students=students
+                                students=studentsnames
                             )
                         )
                         
