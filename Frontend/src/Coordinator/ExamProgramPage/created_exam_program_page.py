@@ -203,7 +203,6 @@ class CreatedExamProgramPage(QWidget):
             self.main_layout.addWidget(self.get_excel_btn, alignment=Qt.AlignCenter)
             
 
-    
     def toggle_seating_plan_visibility(self, button: QPushButton, container: QWidget, plan_data: dict):
         if container.isVisible():
             container.setVisible(False)
@@ -214,9 +213,6 @@ class CreatedExamProgramPage(QWidget):
                 container_layout.setSpacing(15)
             else:
                 container_layout = container.layout()
-
-            container_layout = QVBoxLayout(container)
-            container_layout.setSpacing(15)
             
             for room_name, student_grid in plan_data.items():
                 if not student_grid: 
@@ -240,28 +236,64 @@ class CreatedExamProgramPage(QWidget):
 
                 for r in range(max_row + 1):
                     for c in range(max_col + 1):
-                        cell_content = student_grid.get((r, c))
-                        cell_label = QLabel()
-                        cell_label.setAlignment(Qt.AlignCenter)
-                        cell_label.setFixedSize(60, 40)
-                        
-                        if cell_content == 'AISLE':
-                            cell_label.setText("Koridor")
-                            cell_label.setStyleSheet("color: #666; font-size: 9px; background-color: #282828; border-radius: 3px;")
-                        elif cell_content is None:
-                            cell_label.setText("BOŞ")
-                            cell_label.setStyleSheet("color: #777; font-size: 10px; background-color: #333; border: 1px solid #444; border-radius: 4px;")
+                        cell = student_grid.get((r, c))
+                        label = QLabel()
+                        label.setAlignment(Qt.AlignCenter)
+                        label.setFixedSize(60, 40)
+
+                        if not isinstance(cell, dict):
+                            # beklenmeyen durum
+                            label.setText("??")
+                            label.setStyleSheet("color: #888; font-size: 9px; background-color: #222;")
                         else:
-                            student_no = str(cell_content.get('student_num', '???'))
-                            cell_label.setText(student_no)
-                            cell_label.setStyleSheet("color: white; font-weight: bold; background-color: #005a03; border: 1px solid #1b851f; border-radius: 4px;")
-                        
-                        student_grid_layout.addWidget(cell_label, r, c)
-                    
-                    room_layout.addWidget(grid_widget)
-                    container_layout.addWidget(room_frame)
+                            ctype = cell.get("type")
+
+                            if ctype == "corridor":
+                                label.setText("Koridor")
+                                label.setStyleSheet("""
+                                    color: #666;
+                                    font-size: 9px;
+                                    background-color: #282828;
+                                    border-radius: 3px;
+                                """)
+                            elif ctype == "empty":
+                                label.setText("BOŞ")
+                                label.setStyleSheet("""
+                                    color: #777;
+                                    font-size: 10px;
+                                    background-color: #333;
+                                    border: 1px solid #444;
+                                    border-radius: 4px;
+                                """)
+                            elif ctype == "seat" and cell.get("student_num") is not None:
+                                student_no = str(cell.get("student_num"))
+                                label.setText(student_no)
+                                label.setStyleSheet("""
+                                    color: white;
+                                    font-weight: bold;
+                                    background-color: #005a03;
+                                    border: 1px solid #1b851f;
+                                    border-radius: 4px;
+                                """)
+                            else:
+                                # seat ama öğrenci yok (yani None)
+                                label.setText("BOŞ")
+                                label.setStyleSheet("""
+                                    color: #777;
+                                    font-size: 10px;
+                                    background-color: #333;
+                                    border: 1px solid #444;
+                                    border-radius: 4px;
+                                """)
+
+                        student_grid_layout.addWidget(label, r, c)
+                
+                room_layout.addWidget(grid_widget)
+                container_layout.addWidget(room_frame)
+
             container.setVisible(True)
             button.setText("▲ Oturma Planı Gizle")
+
 
 
     def download_excel(self):
@@ -274,14 +306,13 @@ class CreatedExamProgramPage(QWidget):
             QMessageBox.information(self, "Başarılı", f"Sınav programı '{filename}' olarak başarıyla kaydedildi.")
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"Dosya kaydedilirken bir hata oluştu:\n{e}")
-                
+                    
     def create_seating_plan_pdf(self, filename: str, exam_name: str, plan_data: dict):        
         # PDF dökümanını yatay (landscape) A4 olarak ayarla
         doc = SimpleDocTemplate(filename, pagesize=landscape(A4),
-                                leftMargin=1.5*cm, rightMargin=1.5*cm,
-                                topMargin=1.5*cm, bottomMargin=1.5*cm)
+                                leftMargin=1.5 * cm, rightMargin=1.5 * cm,
+                                topMargin=1.5 * cm, bottomMargin=1.5 * cm)
         
-        # PDF'e eklenecek 'story' (hikaye) elementleri
         story = []
 
         # Paragraf Stilleri
@@ -290,7 +321,7 @@ class CreatedExamProgramPage(QWidget):
                 name='MainTitle', 
                 fontName=FONT_NAME_BOLD, 
                 fontSize=16, 
-                alignment=1, # 1 = CENTER
+                alignment=1,
                 spaceAfter=10
             ),
             'RoomTitle': ParagraphStyle(
@@ -300,26 +331,27 @@ class CreatedExamProgramPage(QWidget):
                 spaceAfter=6, 
                 spaceBefore=10
             ),
-            'CellName': ParagraphStyle(
-                name='CellName', 
-                fontName=FONT_NAME, 
-                fontSize=8, 
-                alignment=1, # CENTER
-                leading=10 # Satır yüksekliği
-            ),
             'CellID': ParagraphStyle(
                 name='CellID', 
                 fontName=FONT_NAME, 
-                fontSize=7, 
-                alignment=1, # CENTER
-                leading=8
+                fontSize=8, 
+                alignment=1, 
+                leading=10
             ),
             'CellEmpty': ParagraphStyle(
                 name='CellEmpty', 
                 fontName=FONT_NAME, 
                 fontSize=8, 
-                alignment=1, # CENTER
+                alignment=1, 
                 textColor=colors.grey, 
+                leading=10
+            ),
+            'CellCorridor': ParagraphStyle(
+                name='CellCorridor', 
+                fontName=FONT_NAME, 
+                fontSize=8, 
+                alignment=1, 
+                textColor=colors.darkgrey, 
                 leading=10
             ),
         }
@@ -330,80 +362,66 @@ class CreatedExamProgramPage(QWidget):
 
         first_room = True
         for room_name, student_grid in plan_data.items():
-            
-            # İlk derslik hariç her derslik için yeni sayfa
+            # Her yeni sınıf için sayfa ekle
             if not first_room:
                 story.append(PageBreak())
             first_room = False
 
-            # Derslik Başlığı
             story.append(Paragraph(f"Derslik: {room_name}", styles['RoomTitle']))
 
             if not student_grid:
                 story.append(Paragraph("Bu derslik için oturma planı verisi bulunmuyor.", styles['CellEmpty']))
                 continue
 
-            # Grid boyutlarını bul (en büyük satır ve sütun numarası)
+            # Boyutları bul
             max_row = max((key[0] for key in student_grid.keys()), default=-1)
             max_col = max((key[1] for key in student_grid.keys()), default=-1)
 
-            # reportlab Table için 2D liste oluştur
             table_data = []
             for r in range(max_row + 1):
                 row_data = []
                 for c in range(max_col + 1):
-                    cell_content = student_grid.get((r, c))
+                    cell = student_grid.get((r, c))
                     
-                    cell_element = []
-                    if isinstance(cell_content, dict):
-                        # Dolu sıra (Öğrenci var)
-                        name = cell_content.get('name', 'İsim Yok') + " " + cell_content.get('surname', '')
-                        num = cell_content.get('student_num', '???')
-                        
-                        # Hücre içeriğini Paragraf listesi olarak ekle
-                        cell_element = [
-                            Paragraph(name, styles['CellName']),
-                            Paragraph(f"({num})", styles['CellID'])
-                        ]
-                    elif cell_content == 'AISLE':
-                        # Koridor (AISLE)
-                        cell_element = Paragraph("(KORİDOR)", styles['CellEmpty'])
+                    if not isinstance(cell, dict):
+                        row_data.append(Paragraph("(?)", styles['CellEmpty']))
+                        continue
+
+                    ctype = cell.get("type")
+
+                    if ctype == "corridor":
+                        cell_elem = Paragraph("(KORİDOR)", styles['CellCorridor'])
+                    elif ctype == "empty":
+                        cell_elem = Paragraph("(BOŞ)", styles['CellEmpty'])
+                    elif ctype == "seat" and cell.get("student_num") is not None:
+                        num = cell.get("student_num")
+                        cell_elem = Paragraph(f"({num})", styles['CellID'])
                     else:
-                        # Boş sıra (None, 'AISLE' veya diğer durumlar)
-                        cell_element = Paragraph("(BOŞ)", styles['CellEmpty'])
-                    
-                    row_data.append(cell_element)
+                        cell_elem = Paragraph("(BOŞ)", styles['CellEmpty'])
+
+                    row_data.append(cell_elem)
+
                 table_data.append(row_data)
 
             if not table_data:
                 continue
-                
-            # Sayfa genişliğini hesapla
-            page_width, page_height = landscape(A4)
+
+            # PDF tablo ayarları
+            page_width, _ = landscape(A4)
             usable_width = page_width - (doc.leftMargin + doc.rightMargin)
-            
-            # Sütun genişliğini ayarla (toplam genişliğe göre ölçekle)
-            # Ekran görüntüsündeki gibi 6 sütunlu bir yapı varsayalım
             num_cols = max_col + 1
             col_width = usable_width / num_cols
-            
-            # Sütun genişliklerini ayarla (hepsi eşit)
+
             col_widths = [col_width] * num_cols
-            # Satır yüksekliklerini ayarla (sabit)
             row_heights = [1.5 * cm] * (max_row + 1)
 
-            # Tabloyu oluştur
             t = Table(table_data, colWidths=col_widths, rowHeights=row_heights)
-            
-            # Tablo Stili (ekran görüntüsündeki gibi)
-            table_style = TableStyle([
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.black), # Tüm hücrelere grid
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),    # Dış çerçeve
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),        # Dikeyde ortala
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),         # Yatayda ortala
-            ])
-            t.setStyle(table_style)
-            
+            t.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('BOX', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ]))
             story.append(t)
 
         # PDF dosyasını oluştur
@@ -412,6 +430,7 @@ class CreatedExamProgramPage(QWidget):
             print(f"✅ PDF başarıyla oluşturuldu: {filename}")
         except Exception as e:
             print(f"❌ PDF oluşturulurken hata oluştu: {e}")
+
             
     def on_exam_schedule_loaded(self, result: dict):
         for i in reversed(range(self.scroll_layout.count())):
@@ -557,13 +576,17 @@ class CreatedExamProgramPage(QWidget):
                             label = QLabel()
                             label.setAlignment(Qt.AlignCenter)
                             label.setFixedSize(60, 40)
-                            if not cell:
-                                label.setText("BOŞ")
-                                label.setStyleSheet("color: #777; font-size: 10px; background-color: #333; border: 1px solid #444; border-radius: 4px;")
-                            else:
+                            if isinstance(cell, dict):
                                 student_no = str(cell.get("student_num", "???"))
                                 label.setText(student_no)
                                 label.setStyleSheet("color: white; font-weight: bold; background-color: #005a03; border: 1px solid #1b851f; border-radius: 4px;")
+                            elif cell in ("KORİDOR", "AISLE"):
+                                label.setText("Koridor")
+                                label.setStyleSheet("color: #666; font-size: 9px; background-color: #282828; border-radius: 3px;")
+                            else:
+                                label.setText("BOŞ")
+                                label.setStyleSheet("color: #777; font-size: 10px; background-color: #333; border: 1px solid #444; border-radius: 4px;")
+
                             grid_layout.addWidget(label, r, c)
 
                     room_layout.addWidget(grid_widget)
@@ -614,11 +637,14 @@ class CreatedExamProgramPage(QWidget):
                 row_data = []
                 for c in range(max_col + 1):
                     cell = parsed_grid.get((r, c))
-                    if cell:
+                    if isinstance(cell, dict):
                         num = cell.get("student_num", "???")
                         cell_elem = [Paragraph(f"{num}", styles['CellName'])]
+                    elif cell in ("KORİDOR", "AISLE"):
+                        cell_elem = Paragraph("(KORİDOR)", styles['CellEmpty'])
                     else:
                         cell_elem = Paragraph("(BOŞ)", styles['CellEmpty'])
+
                     row_data.append(cell_elem)
                 table_data.append(row_data)
 

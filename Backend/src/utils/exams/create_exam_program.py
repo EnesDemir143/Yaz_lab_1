@@ -427,7 +427,7 @@ def create_seating_plan(exam_schedule: List[dict]) -> dict:
 
                     room_name = room_data.get("classroom_id", "Bilinmeyen")
                     print(f'Seating plan for {room_name}:')
-                    print_plan(student_grid, room_data)
+                    #print_plan(student_grid, room_data)
                     cls['seating_plan'][room_name] = student_grid
 
                     print(f'{room_name} has {len(student_chunk)} students')
@@ -458,12 +458,11 @@ def seperate_students(students, classrooms):
         yield students[0:total_capacity]
         students = students[total_capacity:]
 
-
 def adjust_seating_plan(room, students):
     student_grid = {}
     desk_structure = int(room['desk_structure'])  # Örneğin 3 → Ö S Ö
-    num_rows = room['desks_per_column']
-    num_desk_cols = room['desks_per_row']
+    num_rows = int(room['desks_per_column'])
+    num_desk_cols = int(room['desks_per_row'])
 
     if desk_structure <= 0:
         print("Sıra yapısı (desk_structure) pozitif bir sayı olmalıdır.")
@@ -488,29 +487,45 @@ def adjust_seating_plan(room, students):
         for symbol in pattern:
             for row in range(num_rows):
                 if symbol == 'Ö':
-                    student_grid[(row, grid_col_index)] = None  # öğrenci oturacak
+                    # Öğrenci oturabilecek masa
+                    student_grid[(row, grid_col_index)] = {"type": "seat", "student_num": None}
                 else:
-                    student_grid[(row, grid_col_index)] = 'BOS'
+                    # Koridor
+                    student_grid[(row, grid_col_index)] = {"type": "corridor"}
             grid_col_index += 1
             desk_cols_placed += 1
             if desk_cols_placed >= num_desk_cols:
                 break
 
-        # --- Koridor ekle ---
+        # --- Masa bloğu arasına koridor ekle ---
         if desk_cols_placed < num_desk_cols:
             for row in range(num_rows):
-                student_grid[(row, grid_col_index)] = 'KORİDOR'
+                student_grid[(row, grid_col_index)] = {"type": "corridor"}
             grid_col_index += 1
 
     # 🔹 Şimdi öğrencileri sırayla yerleştir
     student_iterator = iter(students)
     for c in range(grid_col_index):
-        if student_grid.get((0, c)) in ('KORİDOR', 'BOS'):
-            continue
         for r in range(num_rows):
+            cell = student_grid.get((r, c))
+            if cell["type"] == "corridor":
+                continue
+
             try:
-                student_grid[(r, c)] = next(student_iterator)
+                student = next(student_iterator)
+                cell["student_num"] = student.get("student_num")
+                cell["type"] = "seat"
             except StopIteration:
+                # kalan yerleri boş olarak işaretle
+                if cell["student_num"] is None:
+                    cell["type"] = "empty"
+
+                # bundan sonraki tüm boşlar da BOS (empty)
+                for cc in range(c, grid_col_index):
+                    for rr in range(num_rows):
+                        sub_cell = student_grid.get((rr, cc))
+                        if sub_cell["type"] != "corridor" and sub_cell["student_num"] is None:
+                            sub_cell["type"] = "empty"
                 return student_grid
 
     return student_grid
