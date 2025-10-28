@@ -30,7 +30,7 @@ class LoginWindow(QWidget):
         shadow.setColor(QColor(0, 0, 0, 180))
         self.card.setGraphicsEffect(shadow)
 
-        title = QLabel("Kullanıcı Giriş Paneli")
+        title = QLabel("Sınav Takvimi Oluşturma Programı")
         title.setFont(QFont("Segoe UI", 22, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
 
