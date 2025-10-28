@@ -143,12 +143,19 @@ class CreatedExamProgramPage(QWidget):
                         download_pdf_button.setStyleSheet("QPushButton { background-color: #2d71b8; border: none; border-radius: 4px; padding: 5px; font-size: 11px; color: white; } QPushButton:hover { background-color: #3a82c9; }")
                         exam_info_layout.addWidget(download_pdf_button)
                         
+                        students = {}
+                        for students in cls.get("students", []):
+                            student_num = students.get("student_num")
+                            name_surname = students.get("name") + " " + str(students.get("surname"))
+                            students[student_num] = name_surname
+                        
                         download_pdf_button.clicked.connect(
-                            lambda checked, exam_name=cname, plan_data=seating_plan_data: 
+                            lambda checked, exam_name=cname, students=students, plan_data=seating_plan_data: 
                             self.create_seating_plan_pdf(
                                 filename=f"{exam_name}_oturma_plani.pdf", 
                                 exam_name=exam_name, 
-                                plan_data=plan_data
+                                plan_data=plan_data,
+                                students=students
                             )
                         )
                         
@@ -303,7 +310,7 @@ class CreatedExamProgramPage(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"Dosya kaydedilirken bir hata oluştu:\n{e}")
                     
-    def create_seating_plan_pdf(self, filename: str, exam_name: str, plan_data: dict):        
+    def create_seating_plan_pdf(self, filename: str, exam_name: str, plan_data: dict, students: dict):        
         # PDF dökümanını yatay (landscape) A4 olarak ayarla
         doc = SimpleDocTemplate(filename, pagesize=landscape(A4),
                                 leftMargin=1.5 * cm, rightMargin=1.5 * cm,
@@ -389,9 +396,14 @@ class CreatedExamProgramPage(QWidget):
                         cell_elem = Paragraph("(KORİDOR)", styles['CellCorridor'])
                     elif ctype == "empty":
                         cell_elem = Paragraph("(BOŞ)", styles['CellEmpty'])
+
                     elif ctype == "seat" and cell.get("student_num") is not None:
-                        num = cell.get("student_num")
-                        cell_elem = Paragraph(f"({num})", styles['CellID'])
+                        num = cell.get("student_num", "???")
+                        name_surname = students.get(num, "Bilinmiyor")
+                        cell_elem = [
+                            Paragraph(f"{num}", styles['CellID']),
+                            Paragraph(f"{name_surname}", styles['CellID'])
+                        ]
                     else:
                         cell_elem = Paragraph("(BOŞ)", styles['CellEmpty'])
 
