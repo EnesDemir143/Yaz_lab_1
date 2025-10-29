@@ -633,7 +633,14 @@ class ExamProgramPage(QWidget):
                 self.insert_exam_schedule_worker.finished.connect(self.handle_insert_exam_schedule)
                 self.active_threads.append(self.insert_exam_schedule_worker)  
                 self.insert_exam_schedule_worker.start()
-            
+            elif len(failed_classes) > 0:
+                failed_classes_str = ', '.join(failed_classes)
+                QMessageBox.warning(
+                    self, "Uyarı",
+                    f"⚠️ Bazı dersler sınav programına yerleştirilemedii:\n{failed_classes_str}\n\n"
+                    "Bu dersler için sınav programı oluşturulamadı."
+                    "Lütfen sınav tarihlerini ve ayarları gözden geçiriniz."
+                )
             
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"❌ Beklenmeyen hata:\n{str(e)}")
