@@ -173,9 +173,9 @@ class ClassroomLayoutDialog(QDialog):
             }
         """)
 
-        for r in range(rows):
+        for r in range(cols):
             grid_col_index = 0  # Grid sütun konumu
-            for c in range(cols):
+            for c in range(rows):
                 # 🔹 BLOK oluştur
                 block_widget = QFrame()
                 block_layout = QHBoxLayout(block_widget)
@@ -219,7 +219,7 @@ class ClassroomLayoutDialog(QDialog):
                 grid_col_index += 1
 
                 # 🔹 Bloktan sonra koridor ekle (son blok hariç)
-                if c < cols - 1:
+                if c < rows - 1:
                     corridor = QLabel("KORİDOR")
                     corridor.setAlignment(Qt.AlignCenter)
                     corridor.setFont(QFont("Segoe UI", 8, QFont.Bold))

@@ -336,54 +336,33 @@ class CreatedExamProgramPage(QWidget):
         
         story = []
 
-        # Paragraf Stilleri
+        # Paragraf stilleri
         styles = {
             'MainTitle': ParagraphStyle(
-                name='MainTitle', 
-                fontName=FONT_NAME_BOLD, 
-                fontSize=16, 
-                alignment=1,
-                spaceAfter=10
+                name='MainTitle', fontName=FONT_NAME_BOLD, fontSize=16, alignment=1, spaceAfter=10
             ),
             'RoomTitle': ParagraphStyle(
-                name='RoomTitle', 
-                fontName=FONT_NAME_BOLD, 
-                fontSize=12, 
-                spaceAfter=6, 
-                spaceBefore=10
+                name='RoomTitle', fontName=FONT_NAME_BOLD, fontSize=12, spaceAfter=6, spaceBefore=10
             ),
             'CellID': ParagraphStyle(
-                name='CellID', 
-                fontName=FONT_NAME, 
-                fontSize=8, 
-                alignment=1, 
-                leading=10
+                name='CellID', fontName=FONT_NAME, fontSize=8, alignment=1, leading=10
             ),
             'CellEmpty': ParagraphStyle(
-                name='CellEmpty', 
-                fontName=FONT_NAME, 
-                fontSize=8, 
-                alignment=1, 
-                textColor=colors.grey, 
-                leading=10
+                name='CellEmpty', fontName=FONT_NAME, fontSize=8, alignment=1,
+                textColor=colors.grey, leading=10
             ),
             'CellCorridor': ParagraphStyle(
-                name='CellCorridor', 
-                fontName=FONT_NAME, 
-                fontSize=8, 
-                alignment=1, 
-                textColor=colors.darkgrey, 
-                leading=10
+                name='CellCorridor', fontName=FONT_NAME, fontSize=8, alignment=1,
+                textColor=colors.darkgrey, leading=10
             ),
         }
 
-        # Ana Başlık
+        # Ana başlık
         story.append(Paragraph(f"Sınav Oturma Planı: {exam_name}", styles['MainTitle']))
         story.append(Spacer(1, 0.5 * cm))
 
         first_room = True
         for room_name, student_grid in plan_data.items():
-            # Her yeni sınıf için sayfa ekle
             if not first_room:
                 story.append(PageBreak())
             first_room = False
@@ -394,7 +373,7 @@ class CreatedExamProgramPage(QWidget):
                 story.append(Paragraph("Bu derslik için oturma planı verisi bulunmuyor.", styles['CellEmpty']))
                 continue
 
-            # Boyutları bul
+            # Boyutlar
             max_row = max((key[0] for key in student_grid.keys()), default=-1)
             max_col = max((key[1] for key in student_grid.keys()), default=-1)
 
@@ -402,31 +381,24 @@ class CreatedExamProgramPage(QWidget):
             for r in range(max_row + 1):
                 row_data = []
                 for c in range(max_col + 1):
-                    cell = student_grid.get((r, c))
-                    
-                    if not isinstance(cell, dict):
-                        row_data.append(Paragraph("(?)", styles['CellEmpty']))
-                        continue
-
+                    cell = student_grid.get((r, c), {"type": "empty"})
                     ctype = cell.get("type")
 
+                    # Hücre tipi
                     if ctype == "corridor":
                         cell_elem = Paragraph("(KORİDOR)", styles['CellCorridor'])
                     elif ctype == "empty":
                         cell_elem = Paragraph("(BOŞ)", styles['CellEmpty'])
-
                     elif ctype == "seat" and cell.get("student_num") is not None:
                         num = cell.get("student_num", "???")
                         name_surname = students.get(num, "Bilinmiyor")
-                        cell_elem = [
-                            Paragraph(f"{num}", styles['CellID']),
-                            Paragraph(f"{name_surname}", styles['CellID'])
-                        ]
-                    else:
+                        cell_elem = Paragraph(f"<b>{num}</b><br/>{name_surname}", styles['CellID'])
+                    elif ctype == "seat":
                         cell_elem = Paragraph("(BOŞ)", styles['CellEmpty'])
+                    else:
+                        cell_elem = Paragraph("", styles['CellEmpty'])
 
                     row_data.append(cell_elem)
-
                 table_data.append(row_data)
 
             if not table_data:
@@ -439,15 +411,34 @@ class CreatedExamProgramPage(QWidget):
             col_width = usable_width / num_cols
 
             col_widths = [col_width] * num_cols
-            row_heights = [1.5 * cm] * (max_row + 1)
+            row_heights = [1.4 * cm] * (max_row + 1)
 
+            # Tablo oluştur
             t = Table(table_data, colWidths=col_widths, rowHeights=row_heights)
-            t.setStyle(TableStyle([
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),
+
+            # Stil — blok ve koridor vurgusu
+            table_style = [
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ]))
+                ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
+            ]
+
+            # 🔹 Koridor hücreleri için arka plan
+            for (r, c), cell in student_grid.items():
+                if cell["type"] == "corridor":
+                    table_style.append(('BACKGROUND', (c, r), (c, r), colors.HexColor("#222222")))
+                elif cell["type"] == "seat" and cell.get("student_num"):
+                    table_style.append(('BACKGROUND', (c, r), (c, r), colors.HexColor("#006d11")))
+                elif cell["type"] == "empty":
+                    table_style.append(('BACKGROUND', (c, r), (c, r), colors.HexColor("#333333")))
+
+            # 🔹 Blok sınırlarını kalın çizgiyle göster (koridor öncesi)
+            for c in range(max_col):
+                col_types = [student_grid.get((0, c), {}).get("type"), student_grid.get((0, c+1), {}).get("type")]
+                if col_types[1] == "corridor":
+                    table_style.append(('LINEAFTER', (c, 0), (c, max_row), 1.5, colors.black))
+
+            t.setStyle(TableStyle(table_style))
             story.append(t)
 
         # PDF dosyasını oluştur
@@ -456,6 +447,7 @@ class CreatedExamProgramPage(QWidget):
             print(f"✅ PDF başarıyla oluşturuldu: {filename}")
         except Exception as e:
             print(f"❌ PDF oluşturulurken hata oluştu: {e}")
+
 
             
     def on_exam_schedule_loaded(self, result: dict):
