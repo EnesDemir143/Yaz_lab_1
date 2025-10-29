@@ -148,7 +148,6 @@ class CreatedExamProgramPage(QWidget):
                             student_num = students.get("student_num")
                             name_surname = students.get("name") + " " + str(students.get("surname"))
                             students_and_names[student_num] = name_surname
-                            print(f"Öğrenci No: {student_num}, İsim Soyisim: {name_surname}")
                         
                         download_pdf_button.clicked.connect(
                             lambda checked, exam_name=cname, studentsnames=students_and_names, plan_data=seating_plan_data: 
