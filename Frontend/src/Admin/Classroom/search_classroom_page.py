@@ -96,88 +96,16 @@ class SearchClassroomPage(QWidget):
             cols = int(classroom.get("desks_per_column", 0))
             struct = int(classroom.get("desk_structure", 0))
             cap = int(classroom.get("capacity", 0))
-            self.draw_classroom_layout(rows, cols, struct, cap)
+            dialog = ClassroomLayoutDialog(
+                self,
+                classroom.get("classroom_name", "Derslik"),
+                rows=rows,      # SATIR
+                cols=cols,      # SÜTUN
+                structure=struct
+            )
+            dialog.exec_()
         except Exception as e:
             QMessageBox.warning(self, "Visualization Error", f"Cannot visualize: {e}")
-
-    def draw_classroom_layout(self, rows: int, cols: int, structure: int, capacity: int = None):
-        if self.visual_layout:
-            while self.visual_layout.count():
-                item = self.visual_layout.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
-        else:
-            self.visual_layout = QGridLayout(self.visual_frame)
-            self.visual_layout.setSpacing(10)
-            self.visual_layout.setAlignment(Qt.AlignCenter)
-
-        total_capacity = capacity or (rows * cols * structure)
-
-        desk_id = 1
-        current_person = 1
-
-        for r in range(rows):
-            for c in range(cols):
-                # Masa dış çerçevesi
-                desk_frame = QFrame()
-                desk_frame.setStyleSheet("""
-                    QFrame {
-                        background-color: #4CAF50;
-                        border: 2px solid #2e7d32;
-                        border-radius: 8px;
-                    }
-                """)
-                desk_frame.setFixedSize(80 + (structure - 1) * 25, 55)
-
-                inner_layout = QHBoxLayout()
-                inner_layout.setContentsMargins(6, 6, 6, 6)
-                inner_layout.setSpacing(6)
-
-                # Her masada structure kadar küçük blok (kişi alanı)
-                for i in range(structure):
-                    block_frame = QFrame()
-                    block_frame.setFixedSize(25, 35)
-                    block_layout = QVBoxLayout()
-                    block_layout.setContentsMargins(2, 2, 2, 2)
-                    block_layout.setSpacing(0)
-
-                    # Eğer hala kapasite dolmamışsa kişi yerleştir
-                    if current_person <= total_capacity:
-                        person_label = QLabel(str(current_person))
-                        current_person += 1
-                        person_label.setAlignment(Qt.AlignCenter)
-                        person_label.setFont(QFont("Arial", 9, QFont.Bold))
-                        person_label.setStyleSheet("""
-                            QLabel {
-                                background-color: #2e7d32;
-                                color: white;
-                                border-radius: 4px;
-                                border: 1px solid #1b5e20;
-                            }
-                        """)
-                    else:
-                        # Kapasite dolduysa boş koltuk
-                        person_label = QLabel("")
-                        person_label.setStyleSheet("""
-                            QLabel {
-                                background-color: #777;
-                                border-radius: 4px;
-                                border: 1px solid #444;
-                            }
-                        """)
-
-                    block_layout.addWidget(person_label)
-                    block_frame.setLayout(block_layout)
-                    inner_layout.addWidget(block_frame)
-
-                desk_frame.setLayout(inner_layout)
-                self.visual_layout.addWidget(desk_frame, r, c)
-
-                desk_id += 1
-                if current_person > total_capacity:
-                    break
-            if current_person > total_capacity:
-                break
             
     def set_classroon_fields(self, classroom_data: dict):
         from Frontend.src.Admin.Classroom.upload_classroom_page import UploadClassroomPage
@@ -189,3 +117,122 @@ class SearchClassroomPage(QWidget):
         upload_page = UploadClassroomPage(self.parent_stack, self.user_info, classroom_id)
         self.parent_stack.addWidget(upload_page)
         self.parent_stack.setCurrentWidget(upload_page)
+
+
+from PyQt5.QtWidgets import QDialog, QScrollArea, QWidget, QLabel, QVBoxLayout, QGridLayout, QFrame
+from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt
+
+
+class ClassroomLayoutDialog(QDialog):
+    def __init__(self, parent, room_name, rows, cols, structure):
+        super().__init__(parent)
+        self.setWindowTitle(f"🪑 {room_name} — Oturma Düzeni")
+        self.setMinimumSize(1100, 750)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #1e1e1e;
+                color: #f1f1f1;
+                font-family: Arial;
+            }
+        """)
+
+        # Scroll alanı
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_content = QWidget()
+        scroll.setWidget(scroll_content)
+
+        # Grid layout
+        self.layout_grid = QGridLayout(scroll_content)
+        self.layout_grid.setSpacing(8)
+        self.layout_grid.setAlignment(Qt.AlignCenter)
+
+        # Başlık
+        title = QLabel(f"{room_name} Oturma Düzeni ({rows}x{cols}, Yapı={structure})")
+        title.setAlignment(Qt.AlignCenter)
+        title.setFont(QFont("Arial", 14, QFont.Bold))
+
+        # Ana layout
+        main_layout = QVBoxLayout(self)
+        main_layout.addWidget(title)
+        main_layout.addWidget(scroll)
+        self.setLayout(main_layout)
+
+        # Çizim fonksiyonu
+        self.draw_layout(rows, cols, structure)
+
+    def draw_layout(self, rows, cols, structure):
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #15171a;
+                color: #f8f9fa;
+                font-family: 'Segoe UI';
+            }
+            QLabel {
+                font-family: 'Segoe UI';
+            }
+        """)
+
+        for r in range(cols):
+            grid_col_index = 0  # Grid sütun konumu
+            for c in range(rows):
+                # 🔹 BLOK oluştur
+                block_widget = QFrame()
+                block_layout = QHBoxLayout(block_widget)
+                block_layout.setSpacing(10)
+                block_layout.setContentsMargins(5, 5, 5, 5)
+                block_widget.setStyleSheet("""
+                    QFrame {
+                        background-color: #1d2024;
+                        border: 1px solid #3e4147;
+                        border-radius: 8px;
+                        padding: 5px;
+                    }
+                """)
+
+                # 🔹 Blok içindeki masaları oluştur
+                for d in range(structure):
+                    desk = QLabel(f"R{r+1}\nB{c+1}\nD{d+1}")
+                    desk.setAlignment(Qt.AlignCenter)
+                    desk.setFont(QFont("Segoe UI", 9, QFont.Bold))
+                    desk.setFixedSize(60, 60)
+                    desk.setStyleSheet("""
+                        QLabel {
+                            background-color: qlineargradient(
+                                spread:pad, x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #3CB371, stop:1 #2E8B57);
+                            color: #f5f5f5;
+                            border-radius: 10px;
+                            border: 1px solid #2f503d;
+                            padding: 5px;
+                        }
+                        QLabel:hover {
+                            background-color: qlineargradient(
+                                spread:pad, x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #45d181, stop:1 #338d60);
+                        }
+                    """)
+                    block_layout.addWidget(desk)
+
+                # Blok widget’ını grid’e yerleştir
+                self.layout_grid.addWidget(block_widget, r, grid_col_index)
+                grid_col_index += 1
+
+                # 🔹 Bloktan sonra koridor ekle (son blok hariç)
+                if c < rows - 1:
+                    corridor = QLabel("KORİDOR")
+                    corridor.setAlignment(Qt.AlignCenter)
+                    corridor.setFont(QFont("Segoe UI", 8, QFont.Bold))
+                    corridor.setFixedSize(80, 70)
+                    corridor.setStyleSheet("""
+                        QLabel {
+                            background-color: #2c2f34;
+                            color: #bcbec2;
+                            border-radius: 10px;
+                            border: 1px solid #3e4147;
+                            letter-spacing: 1px;
+                        }
+                    """)
+                    self.layout_grid.addWidget(corridor, r, grid_col_index)
+                    grid_col_index += 1
