@@ -214,90 +214,107 @@ class CreatedExamProgramPage(QWidget):
         if container.isVisible():
             container.setVisible(False)
             button.setText("▼ Oturma Planı Göster")
+            return
+
+        # 🔹 Layout temizliği
+        if container.layout():
+            for i in reversed(range(container.layout().count())):
+                widget = container.layout().itemAt(i).widget()
+                if widget:
+                    widget.deleteLater()
+            container_layout = container.layout()
         else:
-            # Mevcut layout'u temizle (varsa)
-            if container.layout():
-                for i in reversed(range(container.layout().count())):
-                    widget = container.layout().itemAt(i).widget()
-                    if widget:
-                        widget.deleteLater()
-            else:
-                container_layout = QVBoxLayout(container)
-                container_layout.setSpacing(15)
+            container_layout = QVBoxLayout(container)
+            container_layout.setSpacing(20)
+            container_layout.setContentsMargins(15, 15, 15, 15)
 
-            for room_name, student_grid in plan_data.items():
-                if not student_grid:
-                    continue
+        # 🔹 Her oda için ayrı grid çiz
+        for room_name, student_grid in plan_data.items():
+            if not student_grid:
+                continue
 
-                room_frame = QFrame()
-                room_frame.setStyleSheet("QFrame { border: 1px solid #444; border-radius: 5px; }")
-                room_layout = QVBoxLayout(room_frame)
+            # Oda çerçevesi
+            room_frame = QFrame()
+            room_frame.setStyleSheet("""
+                QFrame {
+                    border: 1px solid #333;
+                    border-radius: 8px;
+                    background-color: #1c1e22;
+                }
+            """)
+            room_layout = QVBoxLayout(room_frame)
+            room_layout.setSpacing(10)
 
-                room_label = QLabel(f"🏫 {room_name}")
-                room_label.setFont(QFont("Arial", 11, QFont.Bold))
-                room_label.setStyleSheet("border: none; padding: 5px; color: #aaa;")
-                room_layout.addWidget(room_label)
+            # Oda başlığı
+            room_label = QLabel(f"🏫 {room_name}")
+            room_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+            room_label.setStyleSheet("color: #f0f0f0; padding: 5px; border: none;")
+            room_layout.addWidget(room_label, alignment=Qt.AlignLeft)
 
-                grid_widget = QWidget()
-                grid_layout = QGridLayout(grid_widget)
-                grid_layout.setSpacing(5)
+            # Grid
+            grid_widget = QWidget()
+            grid_layout = QGridLayout(grid_widget)
+            grid_layout.setSpacing(6)
 
-                # Maksimum satır ve sütun sayılarını bul
-                max_row = max((r for r, _ in student_grid.keys()), default=-1)
-                max_col = max((c for _, c in student_grid.keys()), default=-1)
+            max_row = max((r for r, _ in student_grid.keys()), default=-1)
+            max_col = max((c for _, c in student_grid.keys()), default=-1)
 
-                for r in range(max_row + 1):
-                    for c in range(max_col + 1):
-                        cell = student_grid.get((r, c), {"type": "empty", "student_num": None})
-                        label = QLabel()
-                        label.setAlignment(Qt.AlignCenter)
-                        label.setFixedSize(60, 40)
+            for r in range(max_row + 1):
+                for c in range(max_col + 1):
+                    cell = student_grid.get((r, c), {"type": "empty"})
+                    ctype = cell.get("type")
+                    label = QLabel()
+                    label.setAlignment(Qt.AlignCenter)
+                    label.setFixedSize(65, 45)
 
-                        ctype = cell.get("type")
-                        if ctype == "corridor":
-                            label.setText("Koridor")
-                            label.setStyleSheet("""
-                                color: #666;
+                    if ctype == "corridor":
+                        label.setText("KORİDOR")
+                        label.setStyleSheet("""
+                            QLabel {
+                                color: #888;
                                 font-size: 9px;
-                                background-color: #282828;
-                                border-radius: 3px;
-                            """)
-                        elif ctype == "empty":
-                            label.setText("BOŞ")
-                            label.setStyleSheet("""
-                                color: #777;
-                                font-size: 10px;
-                                background-color: #333;
-                                border: 1px solid #444;
-                                border-radius: 4px;
-                            """)
-                        elif ctype == "seat" and cell.get("student_num") is not None:
-                            student_no = str(cell.get("student_num"))
-                            label.setText(student_no)
-                            label.setStyleSheet("""
+                                background-color: #25282c;
+                                border: 1px dashed #444;
+                                border-radius: 5px;
+                            }
+                        """)
+                    elif ctype == "seat" and cell.get("student_num") is not None:
+                        student_no = str(cell["student_num"])
+                        label.setText(student_no)
+                        label.setStyleSheet("""
+                            QLabel {
                                 color: white;
                                 font-weight: bold;
-                                background-color: #005a03;
+                                background-color: #007f0c;
                                 border: 1px solid #1b851f;
-                                border-radius: 4px;
-                            """)
-                        else:
-                            label.setText("BOŞ")
-                            label.setStyleSheet("""
-                                color: #777;
+                                border-radius: 6px;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                            }
+                        """)
+                    elif ctype == "seat":
+                        label.setText("BOŞ")
+                        label.setStyleSheet("""
+                            QLabel {
+                                color: #aaa;
                                 font-size: 10px;
                                 background-color: #333;
                                 border: 1px solid #444;
-                                border-radius: 4px;
-                            """)
+                                border-radius: 6px;
+                            }
+                        """)
+                    else:  # empty
+                        label.setText("")
+                        label.setStyleSheet("background-color: transparent;")
 
-                        grid_layout.addWidget(label, r, c)
+                    grid_layout.addWidget(label, r, c)
 
-                room_layout.addWidget(grid_widget)
-                container_layout.addWidget(room_frame)
+            room_layout.addWidget(grid_widget)
+            container_layout.addWidget(room_frame)
 
-            container.setVisible(True)
-            button.setText("▲ Oturma Planı Gizle")
+        # Görünür hale getir
+        container.setLayout(container_layout)
+        container.setVisible(True)
+        button.setText("▲ Oturma Planı Gizle")
 
 
     def download_excel(self):

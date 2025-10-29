@@ -268,24 +268,9 @@ def find_suitable_classroom(all_classroom_combs, student_count: int, not_suitabl
         total_capacity = 0
 
         for room in combination:
-            desks_per_row = room['desks_per_row']
-            desks_per_column = room['desks_per_column']
-            desk_structure = int(room['desk_structure'])
-
-            row_capacity = 0
-
-            if desk_structure == 1:
-                row_capacity = desks_per_row
-
-            elif desk_structure == 2 or desk_structure == 4:
-                row_capacity = math.ceil(desks_per_row / 2)
-
-            elif desk_structure == 3:
-                num_groups = desks_per_row // 3
-                leftovers = desks_per_row % 3
-                row_capacity = (num_groups * 2) + leftovers
-            total_capacity += row_capacity * desks_per_column
-            print(f"Sınıf '{room['classroom_name']}' kapasitesi: {row_capacity * desks_per_column}")
+            capacity = room.get('capacity', 0)
+            print(f"Sınıf '{room['classroom_name']}' kapasitesi: {capacity}")
+            total_capacity += capacity
         priority = (len(combination), total_capacity - student_count)
         print(f"Kombinasyon: {[r['classroom_name'] for r in combination]}, Toplam Kapasite: {total_capacity}, Öğrenci Sayısı: {student_count}")
     
@@ -437,84 +422,67 @@ def create_seating_plan(exam_schedule: List[dict]) -> dict:
 
 def seperate_students(students, classrooms):
     for room in classrooms:
-        desks_per_row = room['desks_per_row']
-        desks_per_column = room['desks_per_column']
-        desk_structure = int(room['desk_structure'])
-
-        row_capacity = 0
-
-        if desk_structure == 1:
-            row_capacity = desks_per_row
-
-        elif desk_structure == 2 or desk_structure == 4:
-            row_capacity = math.ceil(desks_per_row / 2)
-
-        elif desk_structure == 3:
-            num_groups = desks_per_row // 3
-            leftovers = desks_per_row % 3
-            row_capacity = (num_groups * 2) + leftovers
-        total_capacity = row_capacity * desks_per_column
+        total_capacity = room.get('capacity', 0)
 
         yield students[0:total_capacity]
         students = students[total_capacity:]
 
 def adjust_seating_plan(room, students):
     student_grid = {}
-    desk_structure = int(room['desk_structure'])  # Örneğin 3 → Ö S Ö
+    desk_structure = int(room['desk_structure'])     # Örn. 3 → Ö S Ö
     num_rows = int(room['desks_per_column'])
-    num_desk_cols = int(room['desks_per_row'])
+    num_blocks = int(room['desks_per_row'])
 
     if desk_structure <= 0:
         print("Sıra yapısı (desk_structure) pozitif bir sayı olmalıdır.")
         return {}
 
+    # 🔹 Masa pattern'ını oluştur (örnek: 3 → Ö S Ö)
+    if desk_structure == 1:
+        pattern = ['Ö']
+    elif desk_structure == 2:
+        pattern = ['Ö', 'S']
+    elif desk_structure == 3:
+        pattern = ['Ö', 'S', 'Ö']
+    else:
+        pattern = ['Ö'] + ['S'] * (desk_structure - 2) + ['Ö']
+
     grid_col_index = 0
-    desk_cols_placed = 0
 
-    while desk_cols_placed < num_desk_cols:
-        # --- Masa bloğu oluştur ---
-        if desk_structure == 1:
-            pattern = ['Ö']
-        elif desk_structure == 2:
-            pattern = ['Ö', 'S']
-        elif desk_structure == 3:
-            pattern = ['Ö', 'S', 'Ö']
-        else:
-            # 4 ve üzeri için: Ö S S ... S Ö
-            pattern = ['Ö'] + ['S'] * (desk_structure - 2) + ['Ö']
-
-        # Bu bloğu tabloya işle
+    for block in range(num_blocks):
+        # Her blokta pattern'i uygula
         for symbol in pattern:
-            for row in range(num_rows):
+            for r in range(num_rows):
                 if symbol == 'Ö':
-                    # Öğrenci oturabilecek masa
-                    student_grid[(row, grid_col_index)] = {"type": "seat", "student_num": None}
+                    student_grid[(r, grid_col_index)] = {
+                        "type": "seat",
+                        "student_num": None
+                    }
                 else:
-                    student_grid[(row, grid_col_index)] = {"type": "empty"}
-            grid_col_index += 1
-            desk_cols_placed += 1
-            if desk_cols_placed >= num_desk_cols:
-                break
-
-        # --- Masa bloğu arasına koridor ekle ---
-        if desk_cols_placed < num_desk_cols:
-            for row in range(num_rows):
-                student_grid[(row, grid_col_index)] = {"type": "corridor"}
+                    student_grid[(r, grid_col_index)] = {
+                        "type": "empty"
+                    }
             grid_col_index += 1
 
-    # 🔹 Şimdi öğrencileri sırayla yerleştir
+        # Bloklar arası koridor
+        if block < num_blocks - 1:
+            for r in range(num_rows):
+                student_grid[(r, grid_col_index)] = {"type": "corridor"}
+            grid_col_index += 1
+
+    # 🔹 Öğrencileri sırayla yerleştir
     student_iterator = iter(students)
     for c in range(grid_col_index):
         for r in range(num_rows):
             cell = student_grid.get((r, c))
-            if cell["type"] == "corridor" or cell["type"] == "empty":
+            if cell["type"] != "seat":
                 continue
-
             try:
                 student = next(student_iterator)
                 cell["student_num"] = student.get("student_num")
             except StopIteration:
-                if cell["student_num"] is None and cell["type"] == "seat":
+                # Kalan koltukları boş yap
+                if cell["type"] == "seat":
                     cell["type"] = "empty"
                     del cell["student_num"]
                 return student_grid

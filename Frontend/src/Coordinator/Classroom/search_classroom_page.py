@@ -97,8 +97,8 @@ class SearchClassroomPage(QWidget):
             dialog = ClassroomLayoutDialog(
                 self,
                 classroom.get("classroom_name", "Derslik"),
-                rows=int(classroom.get("desks_per_column", 0)),  # SATIR
-                cols=int(classroom.get("desks_per_row", 0)),     # SÜTUN
+                cols=int(classroom.get("desks_per_column", 0)),  # SATIR
+                rows=int(classroom.get("desks_per_row", 0)),     # SÜTUN
                 structure=int(classroom.get("desk_structure", 0))
             )
             dialog.exec_()
@@ -172,34 +172,31 @@ class ClassroomLayoutDialog(QDialog):
                 font-family: 'Segoe UI';
             }
         """)
-        
+
         for r in range(rows):
-            grid_col_index = 0
-            aisle_counter = 0
-            for block in range(cols):
-                # Masa yapısı tanımı (örnek: 4 → Ö S S Ö)
-                if structure == 1:
-                    pattern = ['D']
-                elif structure == 2:
-                    pattern = ['D', 'S']
-                elif structure == 3:
-                    pattern = ['D', 'S', 'D']
-                else:
-                    pattern = ['D'] + ['S'] * (structure - 2) + ['D']
+            grid_col_index = 0  # Grid sütun konumu
+            for c in range(cols):
+                # 🔹 BLOK oluştur
+                block_widget = QFrame()
+                block_layout = QHBoxLayout(block_widget)
+                block_layout.setSpacing(10)
+                block_layout.setContentsMargins(5, 5, 5, 5)
+                block_widget.setStyleSheet("""
+                    QFrame {
+                        background-color: #1d2024;
+                        border: 1px solid #3e4147;
+                        border-radius: 8px;
+                        padding: 5px;
+                    }
+                """)
 
-                for symbol in pattern:
-                    frame = QFrame()
-                    frame.setFixedSize(70, 70)
-                    frame_layout = QVBoxLayout(frame)
-                    frame_layout.setAlignment(Qt.AlignCenter)
-                    frame_layout.setContentsMargins(0, 0, 0, 0)
-
-                    label = QLabel()
-                    label.setAlignment(Qt.AlignCenter)
-                    label.setFont(QFont("Segoe UI", 9, QFont.Bold))
-
-                    label.setText(f"R{r+1}\nC{grid_col_index+1- aisle_counter}")
-                    label.setStyleSheet("""
+                # 🔹 Blok içindeki masaları oluştur
+                for d in range(structure):
+                    desk = QLabel(f"R{r+1}\nB{c+1}\nD{d+1}")
+                    desk.setAlignment(Qt.AlignCenter)
+                    desk.setFont(QFont("Segoe UI", 9, QFont.Bold))
+                    desk.setFixedSize(60, 60)
+                    desk.setStyleSheet("""
                         QLabel {
                             background-color: qlineargradient(
                                 spread:pad, x1:0, y1:0, x2:0, y2:1,
@@ -208,7 +205,6 @@ class ClassroomLayoutDialog(QDialog):
                             border-radius: 10px;
                             border: 1px solid #2f503d;
                             padding: 5px;
-                            box-shadow: 0px 3px 8px rgba(0,0,0,0.4);
                         }
                         QLabel:hover {
                             background-color: qlineargradient(
@@ -216,15 +212,14 @@ class ClassroomLayoutDialog(QDialog):
                                 stop:0 #45d181, stop:1 #338d60);
                         }
                     """)
+                    block_layout.addWidget(desk)
 
+                # Blok widget’ını grid’e yerleştir
+                self.layout_grid.addWidget(block_widget, r, grid_col_index)
+                grid_col_index += 1
 
-                    frame_layout.addWidget(label)
-                    frame.setLayout(frame_layout)
-                    self.layout_grid.addWidget(frame, r, grid_col_index)
-                    grid_col_index += 1
-
-                # Her masa bloğundan sonra koridor ekle
-                if block < cols - 1:
+                # 🔹 Bloktan sonra koridor ekle (son blok hariç)
+                if c < cols - 1:
                     corridor = QLabel("KORİDOR")
                     corridor.setAlignment(Qt.AlignCenter)
                     corridor.setFont(QFont("Segoe UI", 8, QFont.Bold))
@@ -239,5 +234,4 @@ class ClassroomLayoutDialog(QDialog):
                         }
                     """)
                     self.layout_grid.addWidget(corridor, r, grid_col_index)
-                    aisle_counter += 1
                     grid_col_index += 1
