@@ -37,6 +37,7 @@ class CoordinatorDashboard(QWidget):
             self.has_schedules = True
             print("Exam schedules exist.")
             self.results = result
+            self.class_list_page.load_classes_for_department()
         else:
             self.has_schedules = False
             print("No exam schedules found.")
@@ -215,6 +216,8 @@ class CoordinatorDashboard(QWidget):
                 item = QListWidgetItem(text)
                 item.setSizeHint(QSize(180, 40))
                 self.menu.addItem(item)
+        
+        self.class_list_page.load_classes_for_department()
 
         for i in range(1, self.menu.count()):
             item = self.menu.item(i)
