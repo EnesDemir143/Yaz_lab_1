@@ -76,7 +76,8 @@ def create_exam_schedule(exam_program, class_dict: dict, classrooms: list[dict],
             found_day = None
             found_date = None
             flexible_mode = False
-            # round-robin gün araması
+            
+            # round-robin gün araması (normal mod)
             for offset in range(total_days):
                 test_day = (start_day + offset) % total_days
                 test_date = exam_schedule[test_day]['date'] 
@@ -84,8 +85,10 @@ def create_exam_schedule(exam_program, class_dict: dict, classrooms: list[dict],
                     found_day = test_day
                     found_date = test_date
                     break
-            
+
+            # 🔹 Eğer normal modda yer bulunamadıysa, esnek mod devreye girer
             if found_day is None:
+                print(f"⚠️   normal yerleştirme yapılamadı. Esnek mod aktif.")
                 flexible_mode = True
                 
                 # En az yoğun günü bul (max_per_day'i aşsa bile)
@@ -99,8 +102,8 @@ def create_exam_schedule(exam_program, class_dict: dict, classrooms: list[dict],
                         print(f"   🔹 Esnek modda Gün {found_day+1} seçildi (mevcut: {min_count} sınav)")
                         break
 
-
             if found_day is None:
+                # Bu duruma düşmemeli ama yine de kontrol
                 failed_classes.extend(classes_by_year[y])
                 classes_by_year[y].clear()
                 continue
@@ -108,7 +111,10 @@ def create_exam_schedule(exam_program, class_dict: dict, classrooms: list[dict],
             class_data = classes_by_year[y].popleft()
             current_day = exam_schedule[found_day]
 
-            print(f"Gün {found_day + 1} | {class_data['name']} ({y}. sınıf) yerleştiriliyor...")
+            if flexible_mode:
+                print(f"Gün {found_day + 1} | {class_data['name']} ({y}. sınıf) yerleştiriliyor... [ESNEK MOD]")
+            else:
+                print(f"Gün {found_day + 1} | {class_data['name']} ({y}. sınıf) yerleştiriliyor...")
             
             # 🔹 Günün used_classrooms dict'ini gönder
             is_successful = insert_class_to_program(
@@ -150,7 +156,7 @@ def create_exam_schedule(exam_program, class_dict: dict, classrooms: list[dict],
         "failed_classes": failed_classes,
         "statistics": statistics
     }
-
+    
 def _find_all_combinations(classrooms: List[dict]) -> List[List[dict]]:
     n = len(classrooms)
     all_combinations = []

@@ -628,11 +628,11 @@ class ExamProgramPage(QWidget):
                 f"Yerleştirilmeyen ders adları: {', '.join(failed_classes) if (len(failed_classes) > 0) else 'Yok'}"
             )
             exam_schedule = self.make_json_safe(self.results['exam_schedule'])
-
-            self.insert_exam_schedule_worker = InsertExamScheduleWorker("insert_exam_schedule_to_db", exam_schedule, self.user_info, role=True)
-            self.insert_exam_schedule_worker.finished.connect(self.handle_insert_exam_schedule)
-            self.active_threads.append(self.insert_exam_schedule_worker)  
-            self.insert_exam_schedule_worker.start()
+            if len(failed_classes) == 0:
+                self.insert_exam_schedule_worker = InsertExamScheduleWorker("insert_exam_schedule_to_db", exam_schedule, self.user_info, role=True)
+                self.insert_exam_schedule_worker.finished.connect(self.handle_insert_exam_schedule)
+                self.active_threads.append(self.insert_exam_schedule_worker)  
+                self.insert_exam_schedule_worker.start()
             
             
         except Exception as e:
