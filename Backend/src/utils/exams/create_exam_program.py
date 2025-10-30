@@ -18,11 +18,11 @@ def create_exam_schedule(exam_program, class_dict: dict, classrooms: list[dict],
             "errors": set()
         }
 
-    
-    
     first_date = datetime.fromisoformat(exam_program.get_first_date_of_exam())
     last_date = datetime.fromisoformat(exam_program.get_last_date_of_exam())
     exam_type = exam_program.get_exam_type()
+    exclude_weekends = exam_program.get_exclude_weekends() #String contains Cumartesi or Pazar
+    exclude_classes = exam_program.get_exclude_classes()
 
     used_classrooms_per_day = {}    
 
@@ -31,6 +31,13 @@ def create_exam_schedule(exam_program, class_dict: dict, classrooms: list[dict],
     current_date = first_date
     while current_date <= last_date:
         date_str = current_date.strftime("%Y-%m-%d")
+        if exclude_weekends:
+            if current_date.weekday() == 5 and "Cumartesi" in exclude_weekends:
+                current_date += timedelta(days=1)
+                continue
+            if current_date.weekday() == 6 and "Pazar" in exclude_weekends:
+                current_date += timedelta(days=1)
+                continue
         exam_schedule.append({
             "date": date_str,
             "exam_type": exam_type,
@@ -45,6 +52,9 @@ def create_exam_schedule(exam_program, class_dict: dict, classrooms: list[dict],
     # Sınıfları yıllara göre grupla
     classes_by_year = {1: [], 2: [], 3: [], 4: []}
     for class_id, info in class_dict.items():
+        if info.get("class_name", '') in exclude_classes:
+            print(f"⚠️ '{info.get('class_name', class_id)}' sınav programından hariç tutuldu.")
+            continue
         year = info.get('year', 0)
         if year in classes_by_year:
             classes_by_year[year].append({
@@ -220,7 +230,7 @@ def insert_class_to_program(
     class_data: dict,
     priority: int,
     exam_program: ExamProgram,
-    exam_day: dict,  # 🔹 Tek bir gün objesi alıyor artık
+    exam_day: dict, 
     all_classroom_combs: List[dict],
     used_classrooms: dict = {},
     errors: dict = {}

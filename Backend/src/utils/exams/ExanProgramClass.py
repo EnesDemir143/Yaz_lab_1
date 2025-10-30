@@ -49,6 +49,12 @@ class ExamProgram:
     
     def set_excluded_courses(self, excluded_courses):
         self.excluded_courses = excluded_courses
+        
+    def get_exclude_classes(self):
+        return self.excluded_courses
+    
+    def get_exclude_weekends(self):
+        return self.haris_gunler
     
     def get_kalan_dersler(self):
         return [d for d in self.dersler if d not in self.excluded_courses]
