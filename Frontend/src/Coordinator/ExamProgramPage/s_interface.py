@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox,
     QDateEdit, QComboBox, QSpinBox, QPushButton,
     QScrollArea, QFrame, QMessageBox, QApplication,
-    QTimeEdit, QDoubleSpinBox, QLineEdit
+    QTimeEdit, QDoubleSpinBox, QLineEdit, QDialog, QTextEdit, QDialogButtonBox
 )
 from PyQt5.QtCore import Qt, QDate, pyqtSignal
 from PyQt5.QtGui import QFont
@@ -619,14 +619,15 @@ class ExamProgramPage(QWidget):
             stats = self.results.get("statistics", {})
             failed_classes = self.results.get("failed_classes", [])
             failed_classes = [cls_name['name'] for cls_name in failed_classes]
-            QMessageBox.information(
-                self, "Başarılı",
-                f"✅ Sınav programı başarıyla oluşturuldu!\n\n"
-                f"📚 Toplam ders: {stats.get('total_classes')}\n"
-                f"✓ Yerleştirilen: {stats.get('successful_classes')}\n"
-                f"✗ Yerleştirilemeyen: {stats.get('failed_classes')}\n"
-                f"Yerleştirilmeyen ders adları: {', '.join(failed_classes) if (len(failed_classes) > 0) else 'Yok'}"
-            )
+            error_per_class = self.results.get("error_per_class", {})
+            error_per_class_cleaned = ""
+            for cls, err in error_per_class.items():
+                if err['is_error']:
+                    error_per_class_cleaned += f"\n\n- {cls}: {', '.join(err['errors'])}"
+            if error_per_class_cleaned:
+                error_per_class_cleaned = f"\n\nSınav programı oluşurken Oluşan sorunlar:\n{error_per_class_cleaned}"
+            
+            self.show_scrollable_message(stats, failed_classes, error_per_class_cleaned)
             exam_schedule = self.make_json_safe(self.results['exam_schedule'])
             if len(failed_classes) == 0:
                 self.insert_exam_schedule_worker = InsertExamScheduleWorker("insert_exam_schedule_to_db", exam_schedule, self.user_info, role=True)
@@ -646,6 +647,38 @@ class ExamProgramPage(QWidget):
             QMessageBox.critical(self, "Hata", f"❌ Beklenmeyen hata:\n{str(e)}")
 
                 
+
+    def show_scrollable_message(self, stats, failed_classes, error_per_class_cleaned):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("📋 Sınav Programı Sonucu")
+        dialog.resize(500, 400)
+
+        layout = QVBoxLayout(dialog)
+
+        summary_label = QLabel(
+            f"<b>✅ Sınav programı oluşturuldu!</b><br><br>"
+            f"📚 Toplam ders: {stats.get('total_classes')}<br>"
+            f"✓ Yerleştirilen: {stats.get('successful_classes')}<br>"
+            f"✗ Yerleştirilemeyen: {stats.get('failed_classes')}<br>"
+            f"<b>Yerleştirilmeyen ders adları:</b> {', '.join(failed_classes) if failed_classes else 'Yok'}"
+        )
+        summary_label.setWordWrap(True)
+        layout.addWidget(summary_label)
+
+        # 🔹 Scrollable text area
+        text_area = QTextEdit()
+        text_area.setReadOnly(True)
+        text_area.setPlainText(error_per_class_cleaned or "Hata bulunamadı.")
+        layout.addWidget(text_area)
+
+        # 🔹 Kapat butonu
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+
+        dialog.exec_()
+                
+    
     def handle_insert_exam_schedule(self, response):
         try:
             if response.get("status") != "success":

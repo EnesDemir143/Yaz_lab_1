@@ -41,6 +41,7 @@ class UploadClassList(QWidget):
         dept_label = QLabel("🏫 Bölüm Seçin:")
         self.department_box = QComboBox()
         self.department_box.addItems(["Bilgisayar Mühendisliği", "Elektrik Mühendisliği", "Elektronik Mühendisliği", "İnşaat Mühendisliği"])
+        self.department_box.setCurrentIndex(0)
         dept_layout.addWidget(dept_label)
         dept_layout.addWidget(self.department_box)
 
