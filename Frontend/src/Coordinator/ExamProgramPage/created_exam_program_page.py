@@ -326,13 +326,13 @@ class CreatedExamProgramPage(QWidget):
             QMessageBox.information(self, "Başarılı", f"Sınav programı '{filename}' olarak başarıyla kaydedildi.")
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"Dosya kaydedilirken bir hata oluştu:\n{e}")
-                    
-    def create_seating_plan_pdf(self, filename: str, exam_name: str, plan_data: dict, students: dict):        
+                        
+    def create_seating_plan_pdf(self, filename: str, exam_name: str, plan_data: dict, students: dict):
         # PDF dökümanını yatay (landscape) A4 olarak ayarla
         doc = SimpleDocTemplate(filename, pagesize=landscape(A4),
                                 leftMargin=1.5 * cm, rightMargin=1.5 * cm,
                                 topMargin=1.5 * cm, bottomMargin=1.5 * cm)
-        
+
         story = []
 
         # Paragraf stilleri
@@ -344,7 +344,8 @@ class CreatedExamProgramPage(QWidget):
                 name='RoomTitle', fontName=FONT_NAME_BOLD, fontSize=12, spaceAfter=6, spaceBefore=10
             ),
             'CellID': ParagraphStyle(
-                name='CellID', fontName=FONT_NAME, fontSize=8, alignment=1, leading=10
+                name='CellID', fontName=FONT_NAME, fontSize=8, alignment=1, leading=10,
+                textColor=colors.white # Koltuk içindeki yazı rengini beyaz yaptım
             ),
             'CellEmpty': ParagraphStyle(
                 name='CellEmpty', fontName=FONT_NAME, fontSize=8, alignment=1,
@@ -352,7 +353,7 @@ class CreatedExamProgramPage(QWidget):
             ),
             'CellCorridor': ParagraphStyle(
                 name='CellCorridor', fontName=FONT_NAME, fontSize=8, alignment=1,
-                textColor=colors.darkgrey, leading=10
+                textColor=colors.lightgrey, leading=10 # Koridor yazısını açık gri yaptım
             ),
         }
 
@@ -391,6 +392,14 @@ class CreatedExamProgramPage(QWidget):
                     elif ctype == "seat" and cell.get("student_num") is not None:
                         num = cell.get("student_num", "???")
                         name_surname = students.get(num, "Bilinmiyor")
+                        # İsmi kısalt (opsiyonel, sığması için)
+                        if len(name_surname) > 20:
+                            parts = name_surname.split(' ')
+                            if len(parts) > 1:
+                                name_surname = f"{parts[0]} {parts[-1][0]}."
+                            else:
+                                name_surname = name_surname[:18] + "..."
+                        
                         cell_elem = Paragraph(f"<b>{num}</b><br/>{name_surname}", styles['CellID'])
                     elif ctype == "seat":
                         cell_elem = Paragraph("(BOŞ)", styles['CellEmpty'])
@@ -416,29 +425,93 @@ class CreatedExamProgramPage(QWidget):
             t = Table(table_data, colWidths=col_widths, rowHeights=row_heights)
 
             # Stil — blok ve koridor vurgusu
-            table_style = [
+            table_style_data = [
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
             ]
 
-            # 🔹 Koridor hücreleri için arka plan
-            for (r, c), cell in student_grid.items():
-                if cell["type"] == "corridor":
-                    table_style.append(('BACKGROUND', (c, r), (c, r), colors.HexColor("#222222")))
-                elif cell["type"] == "seat" and cell.get("student_num"):
-                    table_style.append(('BACKGROUND', (c, r), (c, r), colors.HexColor("#006d11")))
-                elif cell["type"] == "empty":
-                    table_style.append(('BACKGROUND', (c, r), (c, r), colors.HexColor("#333333")))
+            # 🔹 Arka plan renkleri
+            for r in range(max_row + 1):
+                for c in range(max_col + 1):
+                    cell = student_grid.get((r, c), {"type": "empty"})
+                    ctype = cell.get("type")
+                    
+                    if ctype == "corridor":
+                        table_style_data.append(('BACKGROUND', (c, r), (c, r), colors.HexColor("#222222")))
+                    elif ctype == "seat" and cell.get("student_num"):
+                        table_style_data.append(('BACKGROUND', (c, r), (c, r), colors.HexColor("#006d11"))) # Dolu sıra
+                    elif ctype == "seat":
+                        table_style_data.append(('BACKGROUND', (c, r), (c, r), colors.HexColor("#666666"))) # Boş sıra
+                    else: # empty
+                        table_style_data.append(('BACKGROUND', (c, r), (c, r), colors.HexColor("#333333"))) # Boş alan
 
             # 🔹 Blok sınırlarını kalın çizgiyle göster (koridor öncesi)
             for c in range(max_col):
                 col_types = [student_grid.get((0, c), {}).get("type"), student_grid.get((0, c+1), {}).get("type")]
-                if col_types[1] == "corridor":
-                    table_style.append(('LINEAFTER', (c, 0), (c, max_row), 1.5, colors.black))
+                if col_types[1] == "corridor" and col_types[0] != "corridor":
+                    table_style_data.append(('LINEAFTER', (c, 0), (c, max_row), 1.5, colors.black))
 
-            t.setStyle(TableStyle(table_style))
+            t.setStyle(TableStyle(table_style_data))
             story.append(t)
+
+            # -----------------------------------------------------------
+            # YENİ EKLENEN BÖLÜM: Öğrenci Listesi Tablosu
+            # -----------------------------------------------------------
+            
+            story.append(Spacer(1, 0.7 * cm)) # Oturma planı ile liste arasına boşluk
+
+            student_list_rows = []
+            # O sınıftaki tüm öğrencileri topla
+            for (r, c), cell in student_grid.items():
+                if cell.get("type") == "seat" and cell.get("student_num"):
+                    num = cell.get("student_num")
+                    name = students.get(num, "Bilinmiyor")
+                    # Satır ve Sütun için 1-bazlı indeksleme
+                    student_list_rows.append([num, name, str(r + 1), str(c + 1)])
+
+            if not student_list_rows:
+                story.append(Paragraph("Bu derslikte sınava giren öğrenci bulunmamaktadır.", styles['CellEmpty']))
+                continue # Bir sonraki odaya geç
+
+            # Listeyi öğrenci numarasına göre sırala
+            student_list_rows.sort(key=lambda x: x[0])
+
+            # Başlık satırını ekle
+            list_data = [["Öğrenci No", "Ad Soyad", "Satır", "Sütun"]]
+            list_data.extend(student_list_rows)
+
+            # Liste tablosu için sütun genişlikleri
+            list_col_widths = [
+                usable_width * 0.25,  # Numara
+                usable_width * 0.45,  # Ad Soyad
+                usable_width * 0.15,  # Satır
+                usable_width * 0.15   # Sütun
+            ]
+
+            list_table = Table(list_data, colWidths=list_col_widths)
+
+            # Liste tablosunun stili
+            list_table_style = TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#E0E0E0")), # Başlık satırı arka planı
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                ('FONTNAME', (0, 0), (-1, 0), FONT_NAME_BOLD),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTNAME', (0, 1), (-1, -1), FONT_NAME),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('ALIGN', (0, 1), (1, -1), 'LEFT'),   # No ve Ad/Soyad sola hizalı
+                ('ALIGN', (2, 1), (-1, -1), 'CENTER'), # Satır/Sütun ortalı
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ])
+            
+            list_table.setStyle(list_table_style)
+            story.append(list_table)
+            # -----------------------------------------------------------
+            # YENİ BÖLÜM SONU
+            # -----------------------------------------------------------
 
         # PDF dosyasını oluştur
         try:
