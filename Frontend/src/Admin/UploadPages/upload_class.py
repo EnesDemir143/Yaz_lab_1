@@ -83,7 +83,8 @@ class UploadClassList(QWidget):
         if self.check_if_duplicate.get("status") == "error":
             QMessageBox.critical(self, "Hata", self.check_if_duplicate.get("detail", "Bilinmeyen hata"))
             return
-        if self.check_if_duplicate.get("classes"):
+        if self.check_if_duplicate.get("classes", {}) != {}:
+            print(f"Mevcut dersler: {self.check_if_duplicate.get('classes')}")
             QMessageBox.warning(
                 self,
                 "Uyarı",
