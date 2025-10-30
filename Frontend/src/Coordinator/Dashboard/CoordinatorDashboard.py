@@ -37,7 +37,6 @@ class CoordinatorDashboard(QWidget):
             self.has_schedules = True
             print("Exam schedules exist.")
             self.results = result
-            self.class_list_page.load_classes_for_department()
         else:
             self.has_schedules = False
             print("No exam schedules found.")
@@ -139,6 +138,9 @@ class CoordinatorDashboard(QWidget):
         self.class_list_page = ClassListPage(self.user_info, self)
         self.exam_program_page = ExamProgramPage(self.user_info, self)
         self.created_exam_program_page = CreatedExamProgramPage(self.user_info, self)
+        
+        if self.has_schedules:
+            self.class_list_page.load_classes_for_department()
         
         if not self.has_schedules:
             self.exam_program_page.program_created.connect(self.created_exam_program_page.add_exam_program)
