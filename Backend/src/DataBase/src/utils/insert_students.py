@@ -1,10 +1,11 @@
 from Backend.src.DataBase.src.Database_connection import get_database
+from joblib import Parallel, delayed
 import pandas as pd
 
-def insert_students(students: pd.DataFrame) -> None:
-    with get_database() as connection:
-        with connection.cursor() as cursor:
-            for _, student_info in students.iterrows():
+def _insert_single_student(student_info):
+    try:
+        with get_database() as connection:
+            with connection.cursor() as cursor:
                 sql = """
                 INSERT INTO students (student_num, name, surname, grade, department)
                 VALUES (%s, %s, %s, %s, %s)
@@ -21,14 +22,13 @@ def insert_students(students: pd.DataFrame) -> None:
                     student_info['grade'],
                     student_info.get('department', None)
                 ))
-                
+
                 sql_2 = """
-                INSERT INTO student_classes (student_num, class_id) 
+                INSERT INTO student_classes (student_num, class_id)
                 VALUES (%s, %s)
-                ON DUPLICATE KEY UPDATE
-                    class_id = VALUES(class_id)
+                ON DUPLICATE KEY UPDATE class_id = VALUES(class_id)
                 """
-                
+
                 classes_value = student_info['classes']
                 if isinstance(classes_value, list):
                     class_codes = classes_value
@@ -39,3 +39,20 @@ def insert_students(students: pd.DataFrame) -> None:
 
                 for class_code in class_codes:
                     cursor.execute(sql_2, (student_info['student_num'], class_code.strip()))
+
+            connection.commit()
+        return {"status": "ok", "student": student_info['student_num']}
+    except Exception as e:
+        return {"status": "error", "student": student_info.get('student_num'), "error": str(e)}
+
+
+def insert_students(students: pd.DataFrame, n_jobs: int = 6) -> dict:
+    results = Parallel(n_jobs=n_jobs, prefer="processes")(
+        delayed(_insert_single_student)(row)
+        for _, row in students.iterrows()
+    )
+
+    errors = [r for r in results if r["status"] == "error"]
+    if errors:
+        return {"status": "partial", "errors": errors, "inserted": len(results) - len(errors)}
+    return {"status": "success", "inserted": len(results)}

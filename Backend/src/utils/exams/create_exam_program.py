@@ -1,103 +1,219 @@
 import math
 from Backend.src.utils.exams.ExanProgramClass import ExamProgram
 from typing import List
-from queue import PriorityQueue
+from queue import Empty, PriorityQueue
 import itertools
 from datetime import timedelta, datetime
 import pandas as pd
 import random
+from collections import defaultdict, deque
 
-
-def create_exam_schedule(
-    exam_program: ExamProgram,
-    class_dict: dict,
-    classrooms: list[dict]) -> dict:
-    
+def create_exam_schedule(exam_program, class_dict: dict, classrooms: list[dict], max_per_day: int = 2) -> dict:
     statistics = {}
-    
-    first_date_str = exam_program.get_first_date_of_exam()
-    last_date_str = exam_program.get_last_date_of_exam()
-    
-    first_date = datetime.fromisoformat(first_date_str)
-    last_date = datetime.fromisoformat(last_date_str)
+    error_per_class = {}
+    for class_id, info in class_dict.items():
+        class_name = info.get("class_name", f"Unknown_{class_id}")
+        error_per_class[class_name] = {
+            "is_error": False,
+            "errors": set()
+        }
 
+    first_date = datetime.fromisoformat(exam_program.get_first_date_of_exam())
+    last_date = datetime.fromisoformat(exam_program.get_last_date_of_exam())
+    exam_type = exam_program.get_exam_type()
+    exclude_weekends = exam_program.get_exclude_weekends() #String contains Cumartesi or Pazar
+    exclude_classes = exam_program.get_exclude_classes()
+
+    used_classrooms_per_day = {}    
+
+    # Günleri oluştur
     exam_schedule = []
     current_date = first_date
     while current_date <= last_date:
+        date_str = current_date.strftime("%Y-%m-%d")
+        if exclude_weekends:
+            if current_date.weekday() == 5 and "Cumartesi" in exclude_weekends:
+                current_date += timedelta(days=1)
+                continue
+            if current_date.weekday() == 6 and "Pazar" in exclude_weekends:
+                current_date += timedelta(days=1)
+                continue
         exam_schedule.append({
-            "date": current_date.strftime("%Y-%m-%d"),
+            "date": date_str,
+            "exam_type": exam_type,
             "exams": []
-        })
+        })        
+        used_classrooms_per_day[date_str] = {classroom['classroom_name']: 0 for classroom in classrooms}
         current_date += timedelta(days=1)
-        
-    all_classroom_combinations = _find_all_combinations(classrooms)
-    print(f"Tüm sınıf kombinasyonları bulundu: {len(all_classroom_combinations)} adet")
-    
-    classes_by_year = {1: [], 2: [], 3: [], 4: []}
 
+    
+    total_days = len(exam_schedule)
+
+    # Sınıfları yıllara göre grupla
+    classes_by_year = {1: [], 2: [], 3: [], 4: []}
     for class_id, info in class_dict.items():
+        if info.get("class_name", '') in exclude_classes:
+            print(f"⚠️ '{info.get('class_name', class_id)}' sınav programından hariç tutuldu.")
+            continue
         year = info.get('year', 0)
         if year in classes_by_year:
-            class_data = {
+            classes_by_year[year].append({
                 'id': class_id,
                 'name': info.get('class_name', ''),
                 'year': year,
                 'instructor': info.get('instructor', 'N/A'),
                 "students": info.get('students', []),
                 'student_count': len(info.get('students', []))
-            }
-            classes_by_year[year].append(class_data)
+            })
 
-    all_classes = []
-    for year_classes in classes_by_year.values():
-        all_classes.extend(year_classes)
+    # Karıştır ve deque'e çevir
+    for y in classes_by_year:
+        random.shuffle(classes_by_year[y])
+        classes_by_year[y] = deque(classes_by_year[y])
 
-    random.shuffle(all_classes)
+    all_classroom_combinations = _find_all_combinations(classrooms)
+    print(f"Tüm sınıf kombinasyonları bulundu: {len(all_classroom_combinations)} adet")
 
-    final_ordered_list = all_classes
-            
     failed_classes = []
+    success_count = 0
 
-    print("Birincil Yerleştirme denemesi başlıyor...")
-    for idx, class_data in enumerate(final_ordered_list):
-        print(f"Deneme - Öncelik {idx}: {class_data['name']}...")
-        is_successful = insert_class_to_program(class_data, idx, exam_program, exam_schedule, all_classroom_combinations)
-        
-        if not is_successful:
-            print(f"  -> BAŞARISIZ! '{class_data['name']}' dersi sonraya ertelendi.")
-            failed_classes.append(class_data)
-        else:
-            print(f"  -> BAŞARILI! '{class_data['name']}' dersi yerleştirildi.")
+    # Günlük yıl sınav sayacı
+    daily_year_counts = [defaultdict(int) for _ in range(total_days)]
 
-    print("\n" + "="*50 + "\n")
-    count = 0
-    if failed_classes:
-        print("İkincil Yerleştirme denemesi (ertelenen dersler)")
-        for class_data in failed_classes:
-            print(f"Tekrar Deneme - Ders: {class_data['name']}...")
-            is_successful_again = insert_class_to_program(class_data, count, exam_program, exam_schedule, all_classroom_combinations)
+    print("Dinamik Yerleştirme başlıyor...")
+    round_counter = 0
+    start_day = 0  # round-robin başlangıç günü
+
+    while any(classes_by_year[y] for y in classes_by_year):
+        year_order = [1, 2, 3, 4]
+        random.shuffle(year_order)
+
+        for y in year_order:
+            if not classes_by_year[y]:
+                continue
+
+            found_day = None
+            found_date = None
+            flexible_mode = False
             
-            if not is_successful_again:
-                print(f"  -> SONUÇ: BAŞARISIZ! '{class_data['name']}' dersi programa yerleştirilemedi.")
+            for offset in range(total_days):
+                test_day = (start_day + offset) % total_days
+                test_date = exam_schedule[test_day]['date'] 
+                if daily_year_counts[test_day][y] < max_per_day:
+                    found_day = test_day
+                    found_date = test_date
+                    break
+
+            if found_day is None:
+                print(f"⚠️   normal yerleştirme yapılamadı. Esnek mod aktif.")
+                flexible_mode = True
+                
+                min_count = min(daily_year_counts[d][y] for d in range(total_days))
+                for offset in range(total_days):
+                    test_day = (start_day + offset) % total_days
+                    test_date = exam_schedule[test_day]['date']
+                    if daily_year_counts[test_day][y] == min_count:
+                        found_day = test_day
+                        found_date = test_date
+                        print(f"   🔹 Esnek modda Gün {found_day+1} seçildi (mevcut: {min_count} sınav)")
+                        break
+
+            if found_day is None:
+                failed_classes.extend(classes_by_year[y])
+                classes_by_year[y].clear()
+                continue
+
+            class_data = classes_by_year[y].popleft()
+
+            if flexible_mode:
+                print(f"Gün {found_day + 1} | {class_data['name']} ({y}. sınıf) yerleştiriliyor... [ESNEK MOD]")
             else:
-                print(f"  -> SONUÇ: BAŞARILI! '{class_data['name']}' dersi yerleştirildi.")
-            count += 1
-    else:
-        print("Tüm dersler ilk denemede başarıyla yerleştirildi!")
-        
+                print(f"Gün {found_day + 1} | {class_data['name']} ({y}. sınıf) yerleştiriliyor...")
+            
+            # ÖNCELİKLE BULDUĞU GÜNÜ DENE
+            is_successful = False
+            tried_days = [found_day]
+            current_day = exam_schedule[found_day]
+            
+            is_successful = insert_class_to_program(
+                class_data,
+                round_counter,
+                exam_program,
+                current_day, 
+                all_classroom_combinations,
+                used_classrooms=used_classrooms_per_day[found_date],
+                errors=error_per_class[class_data['name']]
+            )
+            
+            if not is_successful:
+                print(f"   🔄 Gün {found_day+1} başarısız, diğer günler deneniyor...")
+                
+                for offset in range(total_days):
+                    test_day = (start_day + offset) % total_days
+                    
+                    if test_day in tried_days:
+                        continue
+                    
+                    max_allowed = max_per_day if not flexible_mode else max_per_day + 3
+                    if daily_year_counts[test_day][y] >= max_allowed:
+                        continue
+                    
+                    print(f"      → Gün {test_day+1} deneniyor... (mevcut: {daily_year_counts[test_day][y]})")
+                    
+                    test_date = exam_schedule[test_day]['date']
+                    current_day = exam_schedule[test_day]
+                    tried_days.append(test_day)
+                    
+                    is_successful = insert_class_to_program(
+                        class_data,
+                        round_counter,
+                        exam_program,
+                        current_day, 
+                        all_classroom_combinations,
+                        used_classrooms=used_classrooms_per_day[test_date],
+                        errors=error_per_class[class_data['name']]
+                    )
+                    
+                    if is_successful:
+                        found_day = test_day  # Başarılı günü güncelle
+                        found_date = test_date
+                        print(f"      ✅ Gün {test_day+1}'de başarılı!")
+                        break
+
+            if is_successful:
+                success_count += 1
+                daily_year_counts[found_day][y] += 1
+                mode_text = "ESNEK MOD" if flexible_mode else "NORMAL"
+                limit_text = f"(limit: {max_per_day})" if daily_year_counts[found_day][y] > max_per_day else ""
+                print(f"  -> BAŞARILI [{mode_text}] ({y}. sınıf - Gün {found_day+1} toplam {daily_year_counts[found_day][y]}) {limit_text}")
+                error_per_class[class_data['name']]['is_error'] = False
+                error_per_class[class_data['name']]['errors'].clear()
+            else:
+                failed_classes.append(class_data)
+                print(f"  -> BAŞARISIZ: {class_data['name']} (Tüm günler denendi)")
+
+
+            start_day = (found_day + 1) % total_days
+            round_counter += 1
+
+    # --- Oturma planı oluştur ---
+    exam_schedule = create_seating_plan(exam_schedule)
+
+    # --- İstatistikler ---
     statistics['total_classes'] = len(class_dict)
     statistics['failed_classes'] = len(failed_classes)
-    statistics['successful_classes'] = statistics['total_classes'] - statistics['failed_classes']
+    statistics['successful_classes'] = success_count
 
-    exam_schedule = create_seating_plan(exam_schedule)
-    print("Oturma planları oluşturuldu.")
-            
+    print("\nYerleştirme tamamlandı.")
+    print(f"Başarılı: {success_count} | Başarısız: {len(failed_classes)}")
+
     return {
         "exam_schedule": exam_schedule,
         "failed_classes": failed_classes,
-        "statistics": statistics
+        "statistics": statistics,
+        "error_per_class": error_per_class
     }
-
+    
 def _find_all_combinations(classrooms: List[dict]) -> List[List[dict]]:
     n = len(classrooms)
     all_combinations = []
@@ -106,7 +222,6 @@ def _find_all_combinations(classrooms: List[dict]) -> List[List[dict]]:
 
     for r in range(1, min(n, MAX_COMBINATION_SIZE) + 1):
         comb_list = [list(c) for c in itertools.combinations(classrooms, r)]
-        print(f"{r} öğeli kombinasyonlar: {len(comb_list)} adet")
         all_combinations.extend(comb_list)
 
     return all_combinations
@@ -115,8 +230,10 @@ def insert_class_to_program(
     class_data: dict,
     priority: int,
     exam_program: ExamProgram,
-    exam_schedule: List[dict],
-    all_classroom_combs: List[dict]
+    exam_day: dict, 
+    all_classroom_combs: List[dict],
+    used_classrooms: dict = {},
+    errors: dict = {}
 ) -> bool:
     class_id = class_data['id']
     class_name = class_data['name']
@@ -128,46 +245,106 @@ def insert_class_to_program(
     has_exam_conflict = exam_program.get_exam_conflict()
     start_time = exam_program.get_start_time()
     end_time = exam_program.get_end_time()
+    print(f"⏰ Sınav günleri için zaman aralığı: {float_to_time_str(start_time)} - {float_to_time_str(end_time)}")
 
     exam_time = exam_program.get_ders_suresi(class_name) / 60
     waiting_after_exam = exam_program.get_bekleme_suresi() / 60
 
     print(f"🧩 '{class_name}' için sınav süresi: {exam_time} saat, bekleme: {waiting_after_exam} saat")
 
-    for day in exam_schedule:
-        exams = day["exams"]
+    exams = exam_day["exams"]
 
-        if not exams:
-            new_exam_block = {
-                "end_time": start_time + exam_time,
-                "classes": [{
-                    "id": class_id,
-                    "name": class_name,
-                    "year": year,
-                    "student_count": student_count,
-                    "students": students,
-                    "instructor": instructor,
-                    "duration": exam_time,
-                    "classrooms": [],
-                    "start_time": start_time,
-                    "end_time": start_time + exam_time
-                }]
-            }
+    # 🔹 Eğer gün boşsa yeni exam block oluştur
+    if not exams:
+        new_exam_block = {
+            "end_time": start_time + exam_time + waiting_after_exam,
+            "classes": [{
+                "id": class_id,
+                "name": class_name,
+                "year": year,
+                "student_count": student_count,
+                "students": students,
+                "instructor": instructor,
+                "duration": exam_time,
+                "classrooms": [],
+                "start_time": start_time,
+                "end_time": start_time + exam_time
+            }]
+        }
 
-            classroom = find_suitable_classroom(all_classroom_combs, student_count)
+        classroom = find_suitable_classroom(all_classroom_combs, student_count, used_classrooms=used_classrooms)
+        if classroom is None:
+            print(f"❌ {class_name}: uygun sınıf bulunamadı (boş güne ekleme).")
+            errors['is_error'] = True
+            errors['errors'].add(f"{class_name} için Uygun derslik bulunamadı (boş güne ekleme).Yetersiz Kapasite")
+            return False
+
+        new_exam_block["classes"][0]["classrooms"] = classroom
+        exams.append(new_exam_block)
+        print(f"✅ '{class_name}' yeni güne yerleştirildi ({exam_day['date']})")
+        errors['is_error'] = False
+        errors['errors'].clear()
+        return True
+
+    # 🔹 Sırayla yerleştirmeyi dene
+    for exam in exams:
+        if exam["end_time"] + exam_time <= end_time:
+            classroom = find_suitable_classroom(all_classroom_combs, student_count, used_classrooms=used_classrooms)
+            errors['is_error'] = True
+            errors['errors'].add(f"{class_name} için Uygun derslik bulunamadı (sırayla ekleme).Yetersiz Kapasite")
             if classroom is None:
-                print(f"❌ {class_name}: uygun sınıf bulunamadı (boş güne ekleme).")
                 continue
 
-            new_exam_block["classes"][0]["classrooms"] = classroom
-            exams.append(new_exam_block)
-            print(f"✅ '{class_name}' yeni güne yerleştirildi ({day['date']})")
+            exam["classes"].append({
+                "id": class_id,
+                "name": class_name,
+                "year": year,
+                "student_count": student_count,
+                "students": students,
+                "instructor": instructor,
+                "duration": exam_time,
+                "classrooms": classroom,
+                "start_time": exam["end_time"],
+                "end_time": exam["end_time"] + exam_time
+            })
+
+            exam["end_time"] += exam_time + waiting_after_exam
+            print(f"✅ '{class_name}' sırayla yerleştirildi ({exam_day['date']})")
+            errors['is_error'] = False
+            errors['errors'].clear()
             return True
 
+    # 🔹 Çakışma modunu dene
+    if has_exam_conflict:
+        print(f"⚙️ Çakışma modu aktif — '{class_name}' için paralel yerleştirme deneniyor.")
         for exam in exams:
-            if exam["end_time"] + exam_time <= end_time:
-                classroom = find_suitable_classroom(all_classroom_combs, student_count)
+            has_conflict_with_any = False
+            for existing_class in exam["classes"]:
+                is_conflict, conflict_students = _students_conflict(existing_class, class_data)
+                if is_conflict:
+                    print(f"   ❌ '{class_name}' ile '{existing_class['name']}' arasında öğrenci çakışması var.")
+                    has_conflict_with_any = True
+                    errors['is_error'] = True
+                    errors['errors'].add(f"{class_name} ile {existing_class['name']} arasında öğrenci çakışması var.Çakışan öğrenciler: {', '.join(map(str, conflict_students))}")
+                    break
+
+            if not has_conflict_with_any:
+                not_suitable_classrooms = [
+                    r['classroom_name']
+                    for c in exam["classes"]
+                    for r in c.get('classrooms', [])
+                ]
+
+                classroom = find_suitable_classroom(
+                    all_classroom_combs,
+                    student_count,
+                    not_suitable_classrooms=not_suitable_classrooms,
+                    used_classrooms=used_classrooms
+                )
                 if classroom is None:
+                    print(f"❌ {class_name}: uygun sınıf bulunamadı (paralel ekleme).")
+                    errors['is_error'] = True
+                    errors['errors'].add(f"{class_name} için Uygun derslik bulunamadı (paralel ekleme).Kapasite Yetersiz")
                     continue
 
                 exam["classes"].append({
@@ -179,106 +356,83 @@ def insert_class_to_program(
                     "instructor": instructor,
                     "duration": exam_time,
                     "classrooms": classroom,
-                    "start_time": exam["end_time"],
-                    "end_time": exam["end_time"] + exam_time
+                    "start_time": exam["classes"][0]["start_time"],
+                    "end_time": exam["classes"][0]["start_time"] + exam_time
                 })
-
-                exam["end_time"] += exam_time + waiting_after_exam
-                print(f"✅ '{class_name}' sırayla yerleştirildi ({day['date']})")
+                print(f"⚡ '{class_name}' paralel olarak '{exam['classes'][0]['name']}' ile aynı saatte ({exam_day['date']}) yerleştirildi.")
+                errors['is_error'] = False
+                errors['errors'].clear()
                 return True
 
-    if has_exam_conflict:
-        print(f"⚙️ Çakışma modu aktif — '{class_name}' için tüm günlerde paralel arama başlıyor.")
-        for day in exam_schedule:
-            for exam in day["exams"]:
-                has_conflict_with_any = False
-                for existing_class in exam["classes"]:
-                    if _students_conflict(existing_class, class_data):
-                        print(f"   ❌ '{class_name}' ile '{existing_class['name']}' arasında öğrenci çakışması var.")
-                        has_conflict_with_any = True
-                        continue
-
-                if not has_conflict_with_any:
-                    not_suitable_classrooms = [
-                        r['classroom_name']
-                        for c in exam["classes"]
-                        for r in c.get('classrooms', [])
-                    ]
-
-                    classroom = find_suitable_classroom(
-                        all_classroom_combs,
-                        student_count,
-                        not_suitable_classrooms=not_suitable_classrooms
-                    )
-                    if classroom is None:
-                        print(f"❌ {class_name}: uygun sınıf bulunamadı (paralel ekleme).")
-                        continue
-
-                    exam["classes"].append({
-                        "id": class_id,
-                        "name": class_name,
-                        "year": year,
-                        "student_count": student_count,
-                        "students": students,
-                        "instructor": instructor,
-                        "duration": exam_time,
-                        "classrooms": classroom,
-                        "start_time": exam["classes"][0]["start_time"],
-                        "end_time": exam["classes"][0]["start_time"] + exam_time
-                    })
-                    print(f"⚡ '{class_name}' paralel olarak '{exam['classes'][0]['name']}' ile aynı saatte ({day['date']}) yerleştirildi.")
-                    return True
-
-    print(f"⚠️ '{class_name}' için hiçbir gün/slotta uygun yer bulunamadı.")
+    print(f"⚠️ '{class_name}' için hiçbir slotta uygun yer bulunamadı.")
+    errors['is_error'] = True
+    errors['errors'].add(f"{class_name} için hiçbir slotta uygun yer bulunamadı.")
     return False
 
-def find_suitable_classroom(all_classroom_combs, student_count: int, not_suitable_classrooms: List = []) -> List[dict] | None:
+def find_suitable_classroom(
+    all_classroom_combs,
+    student_count: int,
+    not_suitable_classrooms: List = [],
+    used_classrooms: dict = {}
+) -> List[dict] | None:
     suitable_combinations = PriorityQueue()
     counter = 0
 
     for combination in all_classroom_combs:
         comb_room_names = [r['classroom_name'] for r in combination]
-        total_capacity = 0
+        total_capacity = sum(r.get('capacity', 0) for r in combination)
 
-        for room in combination:
-            desks_per_row = room['desks_per_row']
-            desks_per_column = room['desks_per_column']
-            desk_structure = int(room['desk_structure'])
+        # Uygun değilse atla
+        if total_capacity < student_count:
+            continue
+        if any(n in not_suitable_classrooms for n in comb_room_names):
+            continue
 
-            row_capacity = 0
+        # 🔹 Günlük kullanım sayılarını hesapla
+        total_usage = sum(used_classrooms.get(name, 0) for name in comb_room_names)
+        
+        # 🔹 Hiç kullanılmamış mı kontrol et
+        is_unused = all(used_classrooms.get(name, 0) == 0 for name in comb_room_names)
+        
+        # 🔹 Öncelik: (hiç kullanılmamışsa 0, kullanılmışsa 1), toplam kullanım, kombinasyon boyutu, kapasite farkı
+        priority = (
+            0 if is_unused else 1,  # 🔹 Önce hiç kullanılmayanlar
+            total_usage,             # 🔹 Sonra en az kullanılanlar
+            len(combination),        # 🔹 Daha az sınıf içeren kombinasyonlar
+            total_capacity - student_count  # 🔹 Kapasite fazlası az olanlar
+        )
 
-            if desk_structure == 1:
-                row_capacity = desks_per_row
-
-            elif desk_structure == 2 or desk_structure == 4:
-                row_capacity = math.ceil(desks_per_row / 2)
-
-            elif desk_structure == 3:
-                num_groups = desks_per_row // 3
-                leftovers = desks_per_row % 3
-                row_capacity = (num_groups * 2) + leftovers
-            total_capacity += row_capacity * desks_per_column
-            print(f"Sınıf '{room['classroom_name']}' kapasitesi: {row_capacity * desks_per_column}")
-        priority = (len(combination), total_capacity - student_count)
-        print(f"Kombinasyon: {[r['classroom_name'] for r in combination]}, Toplam Kapasite: {total_capacity}, Öğrenci Sayısı: {student_count}")
-    
-        if total_capacity >= student_count and not any(n in not_suitable_classrooms for n in comb_room_names):
-            suitable_combinations.put((priority, counter, combination))
-            counter += 1
+        suitable_combinations.put((priority, counter, combination))
+        counter += 1
 
     if suitable_combinations.empty():
-        print(f"Öğrenci sayısı {student_count} için uygun sınıf kombinasyonu bulunamadı.")
-        return None    
-    else:
-        best_combination = suitable_combinations.get()[2]
-        print(f"Öğrenci sayısı {student_count} için uygun sınıf kombinasyonu bulundu: {[room['classroom_name'] for room in best_combination]}")
-        return best_combination
+        print(f"⚠️ Öğrenci sayısı {student_count} için uygun sınıf kombinasyonu bulunamadı.")
+        return None
+
+    # 🔹 En uygun kombinasyonu seç
+    best_combination = suitable_combinations.get()[2]
+    clsroom_names = [r['classroom_name'] for r in best_combination]
     
-def _students_conflict(class1: dict, class2: dict) -> bool:
+    # 🔹 Kullanım durumunu kontrol et
+    usage_counts = [used_classrooms.get(name, 0) for name in clsroom_names]
+    if all(count == 0 for count in usage_counts):
+        print(f"✅ {student_count} öğrenci için seçilen kombinasyon: {clsroom_names} (Hiç kullanılmamış sınıflar)")
+    else:
+        print(f"✅ {student_count} öğrenci için seçilen kombinasyon: {clsroom_names} (Kullanım: {usage_counts})")
+
+    # 🔹 Günlük kullanım sayısını artır
+    for r_name in clsroom_names:
+        used_classrooms[r_name] = used_classrooms.get(r_name, 0) + 1
+
+    return best_combination
+
+def _students_conflict(class1: dict, class2: dict):
     students1 = {s.get('student_num') for s in class1.get('students', []) if s.get('student_num')}
     students2 = {s.get('student_num') for s in class2.get('students', []) if s.get('student_num')}
+    
+    conflict_students = students1.intersection(students2)
 
-    return not students1.isdisjoint(students2)
+    return not students1.isdisjoint(students2), conflict_students
 
 
 
@@ -398,9 +552,9 @@ def create_seating_plan(exam_schedule: List[dict]) -> dict:
                 for room_data, student_chunk in zip(classrooms_full_data, student_chunks):
                     student_grid = adjust_seating_plan(room_data, student_chunk)
 
-                    room_name = room_data.get("classroom_name", "Bilinmeyen")
+                    room_name = room_data.get("classroom_id", "Bilinmeyen")
                     print(f'Seating plan for {room_name}:')
-                    print_plan(student_grid, room_data)
+                    #print_plan(student_grid, room_data)
                     cls['seating_plan'][room_name] = student_grid
 
                     print(f'{room_name} has {len(student_chunk)} students')
@@ -410,82 +564,69 @@ def create_seating_plan(exam_schedule: List[dict]) -> dict:
 
 def seperate_students(students, classrooms):
     for room in classrooms:
-        desks_per_row = room['desks_per_row']
-        desks_per_column = room['desks_per_column']
-        desk_structure = int(room['desk_structure'])
-
-        row_capacity = 0
-
-        if desk_structure == 1:
-            row_capacity = desks_per_row
-
-        elif desk_structure == 2 or desk_structure == 4:
-            row_capacity = math.ceil(desks_per_row / 2)
-
-        elif desk_structure == 3:
-            num_groups = desks_per_row // 3
-            leftovers = desks_per_row % 3
-            row_capacity = (num_groups * 2) + leftovers
-        total_capacity = row_capacity * desks_per_column
+        total_capacity = room.get('capacity', 0)
 
         yield students[0:total_capacity]
         students = students[total_capacity:]
 
-
 def adjust_seating_plan(room, students):
     student_grid = {}
-    desk_structure = int(room['desk_structure'])
-    num_rows = room['desks_per_column']
-    num_desk_cols = room['desks_per_row']
+    desk_structure = int(room['desk_structure'])     # Örn. 3 → Ö S Ö
+    num_rows = int(room['desks_per_column'])
+    num_blocks = int(room['desks_per_row'])
 
     if desk_structure <= 0:
         print("Sıra yapısı (desk_structure) pozitif bir sayı olmalıdır.")
         return {}
 
+    # 🔹 Masa pattern'ını oluştur (örnek: 3 → Ö S Ö)
+    if desk_structure == 1:
+        pattern = ['Ö']
+    elif desk_structure == 2:
+        pattern = ['Ö', 'S']
+    elif desk_structure == 3:
+        pattern = ['Ö', 'S', 'Ö']
+    else:
+        pattern = ['Ö'] + ['S'] * (desk_structure - 2) + ['Ö']
+
     grid_col_index = 0
-    desk_cols_placed = 0
-    while desk_cols_placed < num_desk_cols:
-        if desk_cols_placed > 0 and desk_cols_placed % desk_structure == 0:
-            for row in range(num_rows):
-                student_grid[(row, grid_col_index)] = 'AISLE'
+
+    for block in range(num_blocks):
+        # Her blokta pattern'i uygula
+        for symbol in pattern:
+            for r in range(num_rows):
+                if symbol == 'Ö':
+                    student_grid[(r, grid_col_index)] = {
+                        "type": "seat",
+                        "student_num": None
+                    }
+                else:
+                    student_grid[(r, grid_col_index)] = {
+                        "type": "empty"
+                    }
             grid_col_index += 1
 
-        for row in range(num_rows):
-            student_grid[(row, grid_col_index)] = None
-        desk_cols_placed += 1
-        grid_col_index += 1
-
-    student_iterator = iter(students)
-    max_grid_col = grid_col_index
-    desk_col_counter = 0
-
-    for c in range(max_grid_col):
-        if student_grid.get((0, c)) == 'AISLE':
-            continue
-
-        position_in_structure = desk_col_counter % desk_structure
-        
-        place_students_in_this_col = False
-
-        if desk_structure == 1:
-            place_students_in_this_col = True
-        elif desk_structure == 2 or desk_structure == 4:
-            if position_in_structure == 0:
-                place_students_in_this_col = True
-        elif desk_structure == 3:
-            if position_in_structure != 1:
-                place_students_in_this_col = True
-        elif desk_structure == 4:
-            if position_in_structure == 0 or position_in_structure == 3:
-                place_students_in_this_col = True
-
-        if place_students_in_this_col:
+        # Bloklar arası koridor
+        if block < num_blocks - 1:
             for r in range(num_rows):
-                try:
-                    student_grid[(r, c)] = next(student_iterator)
-                except StopIteration:
-                    return student_grid
-        
-        desk_col_counter += 1
+                student_grid[(r, grid_col_index)] = {"type": "corridor"}
+            grid_col_index += 1
+
+    # 🔹 Öğrencileri sırayla yerleştir
+    student_iterator = iter(students)
+    for c in range(grid_col_index):
+        for r in range(num_rows):
+            cell = student_grid.get((r, c))
+            if cell["type"] != "seat":
+                continue
+            try:
+                student = next(student_iterator)
+                cell["student_num"] = student.get("student_num")
+            except StopIteration:
+                # Kalan koltukları boş yap
+                if cell["type"] == "seat":
+                    cell["type"] = "empty"
+                    del cell["student_num"]
+                return student_grid
 
     return student_grid

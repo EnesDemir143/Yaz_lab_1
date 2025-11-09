@@ -62,6 +62,6 @@ class ClassroomPage(QWidget):
         self.parent_stack.setCurrentWidget(page)
 
     def next_step_after_insertion(self):
-        if self.dashboard:
+        if self.dashboard and not self.dashboard.has_schedules:
             self.dashboard.enable_next_step_after_classroom()  
             self.okey_btn.setVisible(True) 

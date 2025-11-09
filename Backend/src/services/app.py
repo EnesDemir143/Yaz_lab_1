@@ -32,6 +32,9 @@ def login(user: User):
     if role not in ["admin", "coordinator"]:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    if role == "unknown" and department == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
     token = create_access_token({
         "email": user.email,
         "department": department,

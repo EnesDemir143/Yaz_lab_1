@@ -60,7 +60,7 @@ def student_list_save_from_excel(student_list_df, department: str) -> None:
             }
 
     try:
-        insert_students(students_df)
+        insert_students(students_df, n_jobs=6)
     except Exception as e_insert:
         return {
             'status': 'error',

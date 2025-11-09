@@ -1,25 +1,34 @@
+from typing import Any
+from Backend.src.DataBase.src.utils.insert_exam_schedule import insert_exam_schedule
 from Backend.src.DataBase.src.utils.update_classroom import update_classroom as db_update_classroom
 from Backend.src.DataBase.src.utils.class_list_menu import class_list_menu
-from Backend.src.DataBase.src.utils.student_list_menu import student_list_menu
+from Backend.src.DataBase.src.utils.student_list_menu import student_list_menu, student_list_for_department
 from Backend.src.DataBase.scripts.class_list_save_from_excel import class_list_save_from_excel
 from Backend.src.DataBase.scripts.student_list_save_from_excel import student_list_save_from_excel
 from Backend.src.DataBase.src.utils.insert_classroom import insert_classroom_to_db
 from Backend.src.DataBase.src.structures.classrooms import Classroom
 import pandas as pd
-from fastapi import APIRouter, Depends, Form, UploadFile, File
+from fastapi import APIRouter, Body, Depends, Form, UploadFile, File
 from Backend.src.DataBase.src.structures.user import User
 from Backend.src.services.Utils.check_if_coordinator import require_coordinator
 from Backend.src.DataBase.src.utils.search_classroom import search_classroom as db_search_classroom
 from Backend.src.DataBase.src.utils.delete_classroom import delete_classroom as db_delete_classroom
 from Backend.src.DataBase.src.utils.get_all_classrooms import get_all_classrooms 
+from Backend.src.DataBase.src.utils.read_exam_program import read_exam_schedule_by_department
+from Backend.src.DataBase.src.utils.delete_stutent_list import delete_students
+from Backend.src.DataBase.src.utils.delete_classes import delete_classes
 import io
 
 router = APIRouter(prefix="/department_coordinator", tags=["department_coordinator"])
 
 
 @router.post("/upload_classes_list") 
-async def upload_classes_list(user: User = Depends(require_coordinator), file: UploadFile = File(...)):
+async def upload_classes_list(user: User = Depends(require_coordinator), file: UploadFile = File(...)):    
     contents = await file.read()
+    
+    result = delete_classes(user.department)
+    if result.get('status') == 'error' and result.get('status') != 'success':
+        return {"message": "Error while deleting existing class list.", 'status': 'error', 'detail': result.get('errors', '')}
     
     df = pd.read_excel(io.BytesIO(contents), sheet_name="Ders Listesi", header=None)
     
@@ -32,8 +41,12 @@ async def upload_classes_list(user: User = Depends(require_coordinator), file: U
 
 
 @router.post("/upload_students_list")
-async def upload_students_list(user: User = Depends(require_coordinator), file: UploadFile = File(...)):
+async def upload_students_list(user: User = Depends(require_coordinator), file: UploadFile = File(...)): 
     contents = await file.read()
+    
+    result = delete_students(user.department)
+    if result.get('status') == 'error' and result.get('status') != 'success':
+        return {"message": "Error while deleting existing student list.", 'status': 'error', 'detail': result.get('errors', '')}
     
     df = pd.read_excel(io.BytesIO(contents))
     
@@ -251,3 +264,37 @@ def exam_classrooms(user: User = Depends(require_coordinator)):
             'status': 'error',
             'detail': str(e)
         }
+        
+@router.post("/insert_exam_schedule_to_db")
+def insert_exam_schedule_db(exam_schedule: Any = Body(...), user: User = Depends(require_coordinator)):
+    print("📥 Raw exam_schedule string alındı")
+    status, msg = insert_exam_schedule(exam_schedule, n_jobs=6)
+    
+    if status == 'error':
+        print("Error while inserting exam schedule to db.")
+        raise ValueError("Error while inserting exam schedule to db.")
+    
+    return {
+        "status": status,
+        "message": msg
+    }
+
+@router.get("/get_exam_schedule")
+def get_exam_schedule(user: User = Depends(require_coordinator)):
+    
+    result = read_exam_schedule_by_department(user.department)
+    
+    return result
+
+@router.get("/check_students_exist")
+def check_students_exist(user: User = Depends(require_coordinator)):
+    try:
+        students_and_classes = student_list_for_department(department=user.department)
+
+        if not students_and_classes:
+            return {'students': False, "message": "No students found in the database for this department.", 'status': 'success'}
+        
+        return {'students': True, "message": "Students exist in the database for this department.", 'status': 'success'}
+        
+    except Exception as e:
+        return {'students': False, "message": "Error while checking for students.", 'status': 'error', 'detail': str(e)}

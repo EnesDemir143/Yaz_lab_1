@@ -10,9 +10,16 @@ class ExamProgram:
         self.istisna_dersler = {}  
         self.bekleme_suresi = 15
         self.exam_conflict = False
-        self.start_time = 9.0
-        self.end_time = 17.0
+        self.start_time = None
+        self.end_time = None
         
+    def set_start_end_time(self, start_time, end_time):
+        self.start_time = start_time
+        self.end_time = end_time
+        
+    def get_exam_type(self):
+        return self.sinav_turu
+
     def get_start_time(self):
         return self.start_time
     
@@ -42,6 +49,12 @@ class ExamProgram:
     
     def set_excluded_courses(self, excluded_courses):
         self.excluded_courses = excluded_courses
+        
+    def get_exclude_classes(self):
+        return self.excluded_courses
+    
+    def get_exclude_weekends(self):
+        return self.haris_gunler
     
     def get_kalan_dersler(self):
         return [d for d in self.dersler if d not in self.excluded_courses]

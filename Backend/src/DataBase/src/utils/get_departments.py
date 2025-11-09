@@ -8,7 +8,14 @@ def get_departments():
                 sql = "SELECT department FROM users GROUP BY department"
                 cursor.execute(sql)
                 results = cursor.fetchall()
+                
+                sql = "SELECT department FROM classes GROUP BY department"
+                cursor.execute(sql)
+                class_results = cursor.fetchall()
+                
                 departments = [row['department'] for row in results if row['department']]
-        return departments, 'success', 'Departments retrieved successfully'
+                class_departments = [row['department'] for row in class_results if row['department']]
+                extended_departments = list(set(departments) | set(class_departments))
+        return extended_departments, 'success', 'Departments retrieved successfully'
     except Exception as e:
         return [], 'error', str(e)

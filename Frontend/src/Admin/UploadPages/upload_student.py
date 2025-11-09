@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
 from Frontend.src.Admin.UploadPages.upload_file import UploadWorker
+from Frontend.src.Admin.StudentListPage.student_list_page_worker import Student_list_search_worker
 
 
 class uploadStudentList(QWidget):
@@ -40,7 +41,7 @@ class uploadStudentList(QWidget):
         dept_layout = QHBoxLayout()
         dept_label = QLabel("🏫 Bölüm Seçin:")
         self.department_box = QComboBox()
-        self.department_box.addItems(["A Bölümü", "B Bölümü", "C Bölümü"])
+        self.department_box.addItems(["Bilgisayar Mühendisliği", "Elektrik Mühendisliği", "Elektronik Mühendisliği", "İnşaat Mühendisliği"])
         dept_layout.addWidget(dept_label)
         dept_layout.addWidget(self.department_box)
 
@@ -62,6 +63,7 @@ class uploadStudentList(QWidget):
         layout.addStretch()
 
         self.setLayout(layout)
+        
 
     def select_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -70,11 +72,31 @@ class uploadStudentList(QWidget):
         if file_path:
             self.file_label.setText(file_path.split("/")[-1])
             self.file_path = file_path
+            
+    def check_if_duplicate_on_db(self, department):
+        self.worker_2 = Student_list_search_worker("check_students_exist", {'uploaded_department': department}, self.user_info)
+        self.worker_2.finished.connect(self.handle_check_duplicates_response)
+        self.worker_2.start()
+    
+    def handle_check_duplicates_response(self, result):
+        self.check_if_duplicate = result
+        
+        if self.check_if_duplicate.get("status") == "error":
+            QMessageBox.critical(self, "Hata", self.check_if_duplicate.get("detail", "Bilinmeyen hata"))
+            return
+        if self.check_if_duplicate.get("students"):
+            QMessageBox.warning(
+                self,
+                "Uyarı",
+                "Veritabanında zaten kayıtlı ögrenciler var. önce mevcut ögrenciler silinip sonrasında yenileri eklenecektir!!!"
+            )
 
     def upload_action(self):
         if not self.file_path:
             QMessageBox.warning(self, "Uyarı", "Lütfen bir Excel dosyası seçin.")
             return
+        
+        self.check_if_duplicate_on_db(self.department_box.currentText())
 
         department = self.department_box.currentText()
         self.progress_bar.setVisible(True)

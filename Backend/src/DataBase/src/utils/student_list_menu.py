@@ -13,3 +13,15 @@ def student_list_menu(student_num: int) -> list[dict]:
             students_and_classes = cursor.fetchall()
             return students_and_classes
 
+
+def student_list_for_department(department: str) -> list[dict]:
+    with get_database() as db:
+        with db.cursor(pymysql.cursors.DictCursor) as cursor:
+            query = 'SELECT s.student_num, s.name, s.surname, c.class_name, c.class_id ' \
+                    'FROM students s ' \
+                    'LEFT JOIN student_classes sc ON s.student_num = sc.student_num ' \
+                    'LEFT JOIN classes c ON sc.class_id = c.class_id ' \
+                    'WHERE s.department = %s'
+            cursor.execute(query, (department,))
+            students_and_classes = cursor.fetchall()
+            return students_and_classes

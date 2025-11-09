@@ -13,6 +13,7 @@ from Frontend.src.Coordinator.ClassList.class_list_page import ClassListPage
 from Frontend.src.Coordinator.Classroom.insert_classroom_page import InsertClassroomPage
 from Frontend.src.Coordinator.ExamProgramPage.s_interface import ExamProgramPage
 from Frontend.src.Coordinator.ExamProgramPage.created_exam_program_page import CreatedExamProgramPage
+from Frontend.src.Admin.ExamProgramPages.get_exam_schedule_worker import get_schedules
 
 
 class CoordinatorDashboard(QWidget):
@@ -22,7 +23,25 @@ class CoordinatorDashboard(QWidget):
         self.user_info = user_info or {}
         self.file_path = None
         self.classroom_completed = False
+        self.has_schedules = False
+        self.check_schedule()
+        
+    def check_schedule(self):
+        
+        self.get_schedule_worker = get_schedules("get_exam_schedule", self.user_info, True)
+        self.get_schedule_worker.finished.connect(self.on_schedule_check_finished)
+        self.get_schedule_worker.start()
+        
+    def on_schedule_check_finished(self, result):
+        if result.get("status") == "success":
+            self.has_schedules = True
+            print("Exam schedules exist.")
+            self.results = result
+        else:
+            self.has_schedules = False
+            print("No exam schedules found.")
         self.init_ui()
+        
     
     def init_ui(self):
         self.setWindowTitle("Coordinator Dashboard | Koordinatör Paneli")
@@ -40,23 +59,38 @@ class CoordinatorDashboard(QWidget):
         
         self.menu = QListWidget()
         self.menu.setObjectName("menuList")
-                
-        self.initial_menu_items = [
-            "🏠 Genel",
-            "🏫 Sınıf Yönetimi",
-            "📁 Ders Listesi Yükle",
-            "📚 Öğrenci Listesi Yükle",
-        ]
-
-        self.later_menu_items = [
-            "👨‍🎓 Öğrenci Listesi",
-            "📖 Ders Listesi",
-            "🎓 Sınav Programı Oluştur",
-        ]
         
-        self.last_menu_items = [
-            "🗂 Oluşturulmuş Sınav Programı"
-        ]
+        if not self.has_schedules:
+            self.initial_menu_items = [
+                "🏠 Genel",
+                "🏫 Sınıf Yönetimi",
+                "📁 Ders Listesi Yükle",
+                "📚 Öğrenci Listesi Yükle",
+            ]
+
+            self.later_menu_items = [
+                "👨‍🎓 Öğrenci Listesi",
+                "📖 Ders Listesi",
+                "🎓 Sınav Programı Oluştur",
+            ]
+            
+            self.last_menu_items = [
+                "🗂 Oluşturulmuş Sınav Programı"
+            ]
+        else:
+            self.initial_menu_items = [
+                "🏠 Genel",
+                "🏫 Sınıf Yönetimi",
+                "📁 Ders Listesi Yükle",
+                "📚 Öğrenci Listesi Yükle",
+                "👨‍🎓 Öğrenci Listesi",
+                "📖 Ders Listesi",
+                "🎓 Sınav Programı Oluştur",
+                "🗂 Oluşturulmuş Sınav Programı"
+            ]
+            self.later_menu_items = []
+            self.last_menu_items = []
+            self.classroom_completed = True
 
         for item_text in self.initial_menu_items:
             item = QListWidgetItem(item_text)
@@ -105,11 +139,18 @@ class CoordinatorDashboard(QWidget):
         self.exam_program_page = ExamProgramPage(self.user_info, self)
         self.created_exam_program_page = CreatedExamProgramPage(self.user_info, self)
         
-        self.exam_program_page.program_created.connect(self.created_exam_program_page.add_exam_program)
-        self.exam_program_page.program_created.connect(self.on_exam_program_created)
+        if self.has_schedules:
+            self.class_list_page.load_classes_for_department()
         
+        if not self.has_schedules:
+            self.exam_program_page.program_created.connect(self.created_exam_program_page.add_exam_program)
+            self.exam_program_page.program_created.connect(self.on_exam_program_created)
+        else:
+            self.created_exam_program_page.on_exam_schedule_loaded(self.results)
+                
         self.stack.addWidget(self.general_page)  # 0
-        self.stack.addWidget(self.insert_classroom_page)  # 1
+        if not self.has_schedules:
+            self.stack.addWidget(self.insert_classroom_page)  # 1
         self.stack.addWidget(self.classroom_management_system)  # 2
         self.stack.addWidget(self.upload_classes_page)  # 3
         self.stack.addWidget(self.upload_students_page)  # 4
@@ -128,8 +169,12 @@ class CoordinatorDashboard(QWidget):
         main_layout.addLayout(content_layout, 3)
         
         # Başlangıçta InsertClassroomPage göster
-        self.menu.setCurrentRow(1)
-        self.disable_other_menu_items()
+        if not self.has_schedules:
+            self.menu.setCurrentRow(1)
+            self.disable_other_menu_items()
+        else:
+            self.menu.setCurrentRow(0)
+            self.switch_page(0)
     
     def disable_other_menu_items(self):
         if not self.classroom_completed:
@@ -173,6 +218,8 @@ class CoordinatorDashboard(QWidget):
                 item = QListWidgetItem(text)
                 item.setSizeHint(QSize(180, 40))
                 self.menu.addItem(item)
+        
+        self.class_list_page.load_classes_for_department()
 
         for i in range(1, self.menu.count()):
             item = self.menu.item(i)
@@ -244,17 +291,18 @@ class CoordinatorDashboard(QWidget):
         if index in mapping:
             self.current_endpoint, title = mapping[index]
             self.title_label.setText(title)
-
-            # Sayfa eşlemesi
-            if index == 0:
-                self.stack.setCurrentIndex(0)  # Genel sayfa
-            elif index == 1 and not self.classroom_completed:
-                self.stack.setCurrentIndex(1)  # InsertClassroomPage
-            elif index == 1 and self.classroom_completed:
-                self.stack.setCurrentIndex(2)  # ClassroomPage
+            if not self.has_schedules:
+                if index == 0:
+                    self.stack.setCurrentIndex(0)  # Genel sayfa
+                elif index == 1 and not self.classroom_completed:
+                    self.stack.setCurrentIndex(1)  # InsertClassroomPage
+                elif index == 1 and self.classroom_completed:
+                    self.stack.setCurrentIndex(2)  # ClassroomPage
+                else:
+                    # Menü indexi ile stack indexi aynı hizaya gelsin
+                    self.stack.setCurrentIndex(index + 1)
             else:
-                # Menü indexi ile stack indexi aynı hizaya gelsin
-                self.stack.setCurrentIndex(index + 1)
+                self.stack.setCurrentIndex(index)
 
     
     def logout(self):

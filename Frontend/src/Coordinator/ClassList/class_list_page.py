@@ -16,7 +16,6 @@ class ClassListPage(QWidget):
         self.classes_data = {}
 
         self.init_ui()
-        self.load_classes_for_department()
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -63,7 +62,6 @@ class ClassListPage(QWidget):
 
         self.worker = Class_list_page_worker(
             "all_classes",
-            {"department": self.department_name},
             self.user_info
         )
         self.worker.finished.connect(self.handle_classes_response)

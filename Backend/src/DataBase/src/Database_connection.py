@@ -9,7 +9,7 @@ load_dotenv(ENV_PATH)
 def get_database() -> pymysql.connections.Connection:
     try:
         connection = pymysql.connect(
-            host='yaz_lab_1-db-1',
+            host=os.getenv('MYSQL_HOST'),
             user=os.getenv("MYSQL_USER"),
             password=os.getenv("MYSQL_PASSWORD"),
             database=os.getenv("MYSQL_DATABASE"),

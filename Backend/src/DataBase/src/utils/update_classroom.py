@@ -11,7 +11,7 @@ def update_classroom(new_classroom_data: Classroom):
                         department_name = %s,
                         capacity = %s,
                         desks_per_row = %s,
-                        desk_per_column = %s,
+                        desks_per_column = %s,
                         desk_structure = %s
                     WHERE classroom_id = %s
                 """
@@ -20,9 +20,9 @@ def update_classroom(new_classroom_data: Classroom):
                     new_classroom_data.department_name,
                     new_classroom_data.capacity,
                     new_classroom_data.desks_per_row,
-                    new_classroom_data.desk_per_column,
+                    new_classroom_data.desks_per_column,
                     new_classroom_data.desk_structure,
-                    new_classroom_data.classroom_code
+                    new_classroom_data.classroom_id
                 ))
                 if cursor.rowcount == 0:
                     return 'error', 'Classroom not found.'

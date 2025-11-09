@@ -12,7 +12,10 @@ def get_current_role(user: User, hasher=HashPassword()) -> str:
                 cursor.execute(query, (user.email,))
                 password, department = cursor.fetchone()
         print("department:", department)  
+        print("fetched password hash from DB:", password)
+        print("provided password:", user.password)
         if not password:
             return 'unknown', 'unknown'
-        password_is_true = hasher.verify_password(password, user.password)
-        return 'coordinator', department if password_is_true else 'unknown'
+        password_is_true = hasher.verify_password(user.password, password)
+        print("Password verification result:", password_is_true)
+        return 'coordinator' if password_is_true else 'unknown', department if password_is_true else 'unknown'

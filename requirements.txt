@@ -13,3 +13,5 @@ python-multipart
 cryptography
 python-jose[cryptography]
 xlsxwriter
+reportlab
+joblib

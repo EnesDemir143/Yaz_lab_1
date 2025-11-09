@@ -1,7 +1,9 @@
+from datetime import datetime
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox,
     QDateEdit, QComboBox, QSpinBox, QPushButton,
-    QScrollArea, QFrame, QMessageBox, QApplication
+    QScrollArea, QFrame, QMessageBox, QApplication,
+    QTimeEdit, QDoubleSpinBox, QLineEdit, QDialog, QTextEdit, QDialogButtonBox
 )
 from PyQt5.QtCore import Qt, QDate, pyqtSignal
 from PyQt5.QtGui import QFont
@@ -9,7 +11,7 @@ from Frontend.src.Coordinator.ExamProgramPage.exam_program_worker import GetClas
 from Backend.src.utils.exams.ExanProgramClass import ExamProgram
 from Backend.src.utils.exams.create_exam_program import create_exam_schedule
 from Frontend.src.Coordinator.Classroom.classroomReqs import ClassroomRequests
-
+from Frontend.src.Admin.ExamProgramPages.insert_exam_schedule_worker import InsertExamScheduleWorker
 
 class ExamProgramPage(QWidget):
     program_created = pyqtSignal(dict)
@@ -20,6 +22,7 @@ class ExamProgramPage(QWidget):
         self.dersler = []
         self.excluded_courses = set() 
         self.current_step = 1
+        self.active_threads = []
         
         self.saved_start_date = None
         self.saved_end_date = None
@@ -31,6 +34,8 @@ class ExamProgramPage(QWidget):
         self.saved_istisna_sure = 60
         self.saved_bekleme = 15
         self.exam_conflict = False 
+        self.start_time_value = 9.0
+        self.end_time_value = 17.0
         
         self.classes_and_their_students = None
         self.classrooms_data = None
@@ -144,7 +149,9 @@ class ExamProgramPage(QWidget):
                 if hasattr(self, 'start_date') and self.start_date:
                     self.saved_start_date = self.start_date.date()
                 if hasattr(self, 'end_date') and self.end_date:
-                    self.saved_end_date = self.end_date.date()
+                    self.saved_end_date = self.end_date.date()                
+                self.start_time_value = self.parse_time_input(self.start_time_input.text())
+                self.end_time_value = self.parse_time_input(self.end_time_input.text())
                 if hasattr(self, 'check_cumartesi') and self.check_cumartesi:
                     self.saved_cumartesi = self.check_cumartesi.isChecked()
                 if hasattr(self, 'check_pazar') and self.check_pazar:
@@ -255,6 +262,11 @@ class ExamProgramPage(QWidget):
         date_label = QLabel("📅 Sınav Tarih Aralığı:")
         date_label.setFont(QFont("Arial", 11, QFont.Bold))
         self.content_layout.addWidget(date_label)
+        
+        # Saat seçimi
+        saat_label = QLabel("⏰ Sınav Gün Başlangıç ve Bitiş Saatleri:")
+        saat_label.setFont(QFont("Arial", 11, QFont.Bold))
+        self.content_layout.addWidget(saat_label)
 
         self.start_date = QDateEdit()
         if self.saved_start_date:
@@ -280,6 +292,50 @@ class ExamProgramPage(QWidget):
         date_layout.addStretch()
         self.content_layout.addLayout(date_layout)
         self.content_layout.addSpacing(20)
+        
+        self.start_time_input = QLineEdit()
+        self.start_time_input.setPlaceholderText("Örn: 09.15")
+        self.start_time_input.setText("09.00")  # varsayılan değer
+        self.start_time_input.setFixedWidth(90)
+        self.start_time_input.setAlignment(Qt.AlignCenter)
+        self.start_time_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #2b2b2b;
+                color: #ddd;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 10pt;
+            }
+        """)
+
+        # 🕔 Bitiş saati giriş alanı
+        self.end_time_input = QLineEdit()
+        self.end_time_input.setPlaceholderText("Örn: 17.30")
+        self.end_time_input.setText("17.00")
+        self.end_time_input.setFixedWidth(90)
+        self.end_time_input.setAlignment(Qt.AlignCenter)
+        self.end_time_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #2b2b2b;
+                color: #ddd;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 10pt;
+            }
+        """)
+
+        # Layout’a ekleme
+        time_layout = QHBoxLayout()
+        time_layout.addWidget(QLabel("Gün Başlangıç Saati:"))
+        time_layout.addWidget(self.start_time_input)
+        time_layout.addWidget(QLabel("Gün Bitiş Saati:"))
+        time_layout.addWidget(self.end_time_input)
+        time_layout.addStretch()
+        self.content_layout.addLayout(time_layout)
+        self.content_layout.addSpacing(20)
+
 
         # Hariç günler
         exclude_label = QLabel("🚫 Hariç Tutulacak Günler:")
@@ -434,6 +490,19 @@ class ExamProgramPage(QWidget):
         self.content_layout.addWidget(self.check_conflict)
 
         self.content_layout.addStretch()
+        
+    def parse_time_input(self, text: str) -> float:
+        try:
+            if "." in text:
+                hour_str, minute_str = text.split(".")
+                hour = int(hour_str)
+                minute = int(minute_str)
+                return hour + (minute / 60.0)
+            else:
+                return float(text)
+        except Exception:
+            return None
+
 
     def finish_program(self):
         try:
@@ -460,6 +529,9 @@ class ExamProgramPage(QWidget):
             self.exam_program.set_sinav_turu(self.saved_sinav_turu)
 
             self.exam_program.set_varsayilan_sure(self.saved_varsayilan_sure)
+            
+            self.exam_program.set_start_end_time(self.start_time_value, self.end_time_value)
+
 
             if self.saved_istisna_ders:
                 for ders, sure in self.saved_istisna_ders.items():
@@ -515,6 +587,20 @@ class ExamProgramPage(QWidget):
                 self.get_classroom_worker.quit()
                 self.get_classroom_worker.wait()
                 
+    def make_json_safe(self, data):
+        if isinstance(data, dict):
+            new_dict = {}
+            for k, v in data.items():
+                if isinstance(k, tuple):
+                    k = f"{k[0]},{k[1]}"
+                new_dict[str(k)] = self.make_json_safe(v)
+            return new_dict
+        elif isinstance(data, list):
+            return [self.make_json_safe(i) for i in data]
+        elif isinstance(data, (datetime,)):
+            return data.isoformat()
+        else:
+            return data        
         
     def create_exam_program(self):
         try:
@@ -525,22 +611,87 @@ class ExamProgramPage(QWidget):
             if not self.classrooms_data:
                 raise ValueError("Classroom verileri alınamadı")
             
-            results = create_exam_schedule(
+            self.results = create_exam_schedule(
                 exam_program=self.exam_program,
                 class_dict=self.classes_and_their_students,
                 classrooms=self.classrooms_data,
             )
+            stats = self.results.get("statistics", {})
+            failed_classes = self.results.get("failed_classes", [])
+            failed_classes = [cls_name['name'] for cls_name in failed_classes]
+            error_per_class = self.results.get("error_per_class", {})
+            error_per_class_cleaned = ""
+            for cls, err in error_per_class.items():
+                if err['is_error']:
+                    error_per_class_cleaned += f"\n\n- {cls}: {', '.join(err['errors'])}"
+            if error_per_class_cleaned:
+                error_per_class_cleaned = f"\n\nSınav programı oluşurken Oluşan sorunlar:\n{error_per_class_cleaned}"
             
-            stats = results.get("statistics", {})
-            QMessageBox.information(
-                self, "Başarılı",
-                f"✅ Sınav programı başarıyla oluşturuldu!\n\n"
-                f"📚 Toplam ders: {stats.get('total_classes')}\n"
-                f"✓ Yerleştirilen: {stats.get('successful_classes')}\n"
-                f"✗ Yerleştirilemeyen: {stats.get('failed_classes')}\n"
-            )
-            
-            self.program_created.emit(results)
+            self.show_scrollable_message(stats, failed_classes, error_per_class_cleaned)
+            exam_schedule = self.make_json_safe(self.results['exam_schedule'])
+            if len(failed_classes) == 0:
+                self.insert_exam_schedule_worker = InsertExamScheduleWorker("insert_exam_schedule_to_db", exam_schedule, self.user_info, role=True)
+                self.insert_exam_schedule_worker.finished.connect(self.handle_insert_exam_schedule)
+                self.active_threads.append(self.insert_exam_schedule_worker)  
+                self.insert_exam_schedule_worker.start()
+            elif len(failed_classes) > 0:
+                failed_classes_str = ', '.join(failed_classes)
+                QMessageBox.warning(
+                    self, "Uyarı",
+                    f"⚠️ Bazı dersler sınav programına yerleştirilemedii:\n{failed_classes_str}\n\n"
+                    "Bu dersler için sınav programı oluşturulamadı."
+                    "Lütfen sınav tarihlerini ve ayarları gözden geçiriniz."
+                )
             
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"❌ Beklenmeyen hata:\n{str(e)}")
+
+                
+
+    def show_scrollable_message(self, stats, failed_classes, error_per_class_cleaned):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("📋 Sınav Programı Sonucu")
+        dialog.resize(500, 400)
+
+        layout = QVBoxLayout(dialog)
+
+        summary_label = QLabel(
+            f"<b>✅ Sınav programı oluşturuldu!</b><br><br>"
+            f"📚 Toplam ders: {stats.get('total_classes')}<br>"
+            f"✓ Yerleştirilen: {stats.get('successful_classes')}<br>"
+            f"✗ Yerleştirilemeyen: {stats.get('failed_classes')}<br>"
+            f"<b>Yerleştirilmeyen ders adları:</b> {', '.join(failed_classes) if failed_classes else 'Yok'}"
+        )
+        summary_label.setWordWrap(True)
+        layout.addWidget(summary_label)
+
+        # 🔹 Scrollable text area
+        text_area = QTextEdit()
+        text_area.setReadOnly(True)
+        text_area.setPlainText(error_per_class_cleaned or "Hata bulunamadı.")
+        layout.addWidget(text_area)
+
+        # 🔹 Kapat butonu
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+
+        dialog.exec_()
+                
+    
+    def handle_insert_exam_schedule(self, response):
+        try:
+            if response.get("status") != "success":
+                QMessageBox.warning(
+                    self, "Uyarı",
+                    f"⚠️ Exam schedule DB ye eklenemedi:\n{response.get('message', 'Bilinmeyen hata')}\n\n")
+                raise Exception("Exam schedule DB ye eklenemedi")
+          
+            self.program_created.emit(self.results)  
+            
+        finally:
+            if hasattr(self, "insert_exam_schedule_worker"):
+                self.insert_exam_schedule_worker.quit()
+                self.insert_exam_schedule_worker.wait()
+                if self.insert_exam_schedule_worker in self.active_threads:
+                    self.active_threads.remove(self.insert_exam_schedule_worker)

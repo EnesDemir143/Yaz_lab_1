@@ -6,7 +6,7 @@ API_BASE = "http://127.0.0.1:8000/department_coordinator"
 class Class_list_page_worker(QThread):
     finished = pyqtSignal(dict)
 
-    def __init__(self, endpoint: str, data: dict, user_info: dict):
+    def __init__(self, endpoint: str, user_info: dict):
         super().__init__()
         self.endpoint = endpoint
         self.user_info = user_info
